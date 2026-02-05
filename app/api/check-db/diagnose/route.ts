@@ -7,6 +7,12 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const results: Record<string, unknown> = {};
 
+  // DB host (sanitized)
+  const dbUrl = process.env.DATABASE_URL || "";
+  const hostMatch = dbUrl.match(/@([^/?]+)/);
+  results.dbHost = hostMatch ? hostMatch[1] : "not-set";
+  results.dbUrlLen = dbUrl.length;
+
   try {
     await prisma.$queryRaw`SELECT 1`;
     results.rawSql = "OK";
