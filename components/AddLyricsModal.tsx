@@ -177,6 +177,7 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
     try {
       const url = isEdit ? `/api/lyrics/${editItem.id}` : "/api/lyrics";
       const method = isEdit ? "PUT" : "POST";
+      console.log("[AddLyrics] 提交数据:", { lyrics: finalLyrics, albumName: finalAlbumName, artistName: finalArtistName, imageUrl: finalImageUrl?.slice(0, 60) });
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -187,12 +188,17 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
           imageUrl: finalImageUrl,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "保存失败");
+      const text = await res.text();
+      console.log("[AddLyrics] 响应:", res.status, text.slice(0, 200));
+      let data;
+      try { data = JSON.parse(text); } catch { throw new Error(`服务器返回异常: ${res.status} - ${text.slice(0, 100)}`); }
+      if (!res.ok) throw new Error(data.error || `保存失败 (${res.status})`);
       onSuccess();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "保存失败");
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[AddLyrics] 保存错误:", msg);
+      setError(msg || "保存失败（未知错误）");
     } finally {
       setLoading(false);
     }
