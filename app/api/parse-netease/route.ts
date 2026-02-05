@@ -53,12 +53,47 @@ function extractSongInfo(song: Record<string, unknown>) {
   };
 }
 
+type SongInfo = {
+  albumName: string;
+  artistName: string;
+  picUrl: string;
+  songName: string | null;
+  songId: string | null;
+};
+
+/** 获取歌曲歌词，去除时间标签 */
+async function fetchLyrics(baseUrl: string, songId: string): Promise<string> {
+  try {
+    const res = await fetch(
+      `${baseUrl.replace(/\/$/, "")}/lyric?id=${songId}`,
+      { headers: { "User-Agent": "Mozilla/5.0" } }
+    );
+    if (!res.ok) return "";
+    const data = await res.json();
+    const raw: string = data?.lrc?.lyric || "";
+    // 去除 [mm:ss.xxx] 时间标签，去除空行，去除元信息行（作词/作曲/编曲/制作人等）
+    return raw
+      .replace(/\[\d{2}:\d{2}[.:]\d{2,3}\]/g, "")
+      .split("\n")
+      .map((l: string) => l.trim())
+      .filter((l: string) => {
+        if (!l) return false;
+        // 过滤元信息行
+        if (/^(作词|作曲|编曲|制作人|混音|母带|录音|吉他|贝斯|鼓|键盘|和声|监制|出品|词|曲|编)\s*[：:]/i.test(l)) return false;
+        return true;
+      })
+      .join("\n");
+  } catch {
+    return "";
+  }
+}
+
 /** 使用 NeteaseCloudMusicApi（需本地运行 npx NeteaseCloudMusicApi） */
 async function fetchViaNeteaseApi(
   baseUrl: string,
   type: "song" | "album",
   id: string
-): Promise<{ albumName: string; artistName: string; picUrl: string }> {
+): Promise<SongInfo> {
   const url = baseUrl.replace(/\/$/, "");
   if (type === "song") {
     const res = await fetch(`${url}/song/detail?ids=${id}`, {
@@ -68,7 +103,8 @@ async function fetchViaNeteaseApi(
     const data = await res.json();
     const songs = data?.songs;
     if (!songs?.length) throw new Error("未找到歌曲信息");
-    return extractSongInfo(songs[0]);
+    const info = extractSongInfo(songs[0]);
+    return { ...info, songId: id };
   } else {
     const res = await fetch(`${url}/album?id=${id}`, {
       headers: { "User-Agent": "Mozilla/5.0" },
@@ -85,6 +121,8 @@ async function fetchViaNeteaseApi(
       albumName: album.name,
       artistName,
       picUrl: (album.picUrl || album.pic || "").replace(/^http:/, "https:"),
+      songName: null,
+      songId: null,
     };
   }
 }
@@ -152,14 +190,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let info: { albumName: string; artistName: string; picUrl: string };
-    info = await fetchViaNeteaseApi(apiBase, parsed.type, parsed.id);
+    const info = await fetchViaNeteaseApi(apiBase, parsed.type, parsed.id);
 
     if (!info.picUrl) {
       return NextResponse.json(
         { error: "未能获取封面图片" },
         { status: 400 }
       );
+    }
+
+    // 如果是歌曲链接，同步获取歌词
+    let lyrics: string | null = null;
+    if (parsed.type === "song" && info.songId) {
+      lyrics = await fetchLyrics(apiBase, info.songId);
+      if (!lyrics) lyrics = null;
     }
 
     const imageUrl = await downloadAndSaveCover(info.picUrl);
@@ -170,6 +214,9 @@ export async function POST(request: NextRequest) {
           imageUrl,
           albumName: info.albumName,
           artistName: info.artistName || null,
+          songId: info.songId || null,
+          songName: info.songName || null,
+          lyrics,
           releaseYear: null,
           genre: null,
           notes: null,

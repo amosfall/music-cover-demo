@@ -17,6 +17,9 @@ model AlbumCover {
   releaseYear String?
   genre       String?
   notes       String?
+  songId      String?
+  songName    String?
+  lyrics      String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
