@@ -32,7 +32,7 @@ export default function AlbumGrid() {
     fetch("/api/albums")
       .then((res) => res.json())
       .then((data) => {
-        setItems(data);
+        setItems(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -53,7 +53,8 @@ export default function AlbumGrid() {
     );
   }
 
-  if (items.length === 0) {
+  const list = Array.isArray(items) ? items : [];
+  if (list.length === 0) {
     return (
       <div className="flex min-h-[40vh] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[var(--accent-light)]/50 bg-white/30 p-12 text-center">
         <span className="mb-4 text-6xl opacity-50">🎵</span>
@@ -67,7 +68,7 @@ export default function AlbumGrid() {
 
   return (
     <div className="album-wall">
-      {items.map((item, index) => (
+      {list.map((item, index) => (
         <div
           key={item.id}
           className="album-cover-wrapper group"
