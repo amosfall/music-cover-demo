@@ -26,3 +26,5 @@ npm run dev
 ## 云端部署
 
 详见 [DEPLOYMENT.md](./DEPLOYMENT.md)，支持部署到 Vercel、Railway 等平台。
+
+已配置 PostgreSQL 数据库，支持云端部署。
