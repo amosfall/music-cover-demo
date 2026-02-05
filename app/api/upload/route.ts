@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { saveImage } from "@/lib/storage";
+import { saveImage, isVercel, hasBlobToken } from "@/lib/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+  // 在 Vercel 上必须有 Blob 存储才能上传文件
+  if (isVercel && !hasBlobToken) {
+    return NextResponse.json(
+      {
+        error:
+          "请先在 Vercel 项目中配置 Blob 存储（项目 → Storage → 创建 Blob Store），BLOB_READ_WRITE_TOKEN 会自动注入。",
+      },
+      { status: 503 }
+    );
+  }
+
   try {
     const formData = await request.formData();
     const file = formData.get("image") as File;
@@ -27,9 +38,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Upload error:", error);
-    return NextResponse.json(
-      { error: "上传失败" },
-      { status: 500 }
-    );
+    const msg = error instanceof Error ? error.message : "上传失败";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

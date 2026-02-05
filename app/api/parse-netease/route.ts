@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
-import { saveImage } from "@/lib/storage";
+import { saveImage, isVercel, hasBlobToken } from "@/lib/storage";
 import { isDbConnectionError, withDbRetry } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -89,8 +89,18 @@ async function fetchViaNeteaseApi(
   }
 }
 
+/**
+ * 下载封面并保存到存储。
+ * 在 Vercel 环境如果没有配置 Blob 存储，则直接使用原始 CDN URL。
+ */
 async function downloadAndSaveCover(picUrl: string): Promise<string> {
   if (!picUrl?.startsWith("http")) throw new Error("无效的封面地址");
+
+  // Vercel 上没有 Blob Token 时，直接使用网易云 CDN 链接（避免 EROFS 错误）
+  if (isVercel && !hasBlobToken) {
+    return picUrl;
+  }
+
   const res = await fetch(picUrl, {
     headers: {
       "User-Agent":

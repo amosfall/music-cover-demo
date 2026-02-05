@@ -44,3 +44,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# cursor
+.cursor/
+
+# uploaded album covers (local dev only)
+public/albums/
+
+# test files
+test-db.ts
