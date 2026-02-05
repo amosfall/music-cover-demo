@@ -1,11 +1,12 @@
-// Prisma schema - 音乐专辑封面收藏
+// 云端部署用：PostgreSQL 版本
+// 部署前复制为 schema.prisma 并配置 DATABASE_URL
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model AlbumCover {
