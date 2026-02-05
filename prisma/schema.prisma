@@ -1,0 +1,21 @@
+// Prisma schema - 音乐专辑封面收藏
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model AlbumCover {
+  id          String   @id @default(cuid())
+  imageUrl    String
+  albumName   String
+  artistName  String?
+  releaseYear String?
+  genre       String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

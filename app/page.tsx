@@ -1,65 +1,126 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import AlbumGrid from "@/components/AlbumGrid";
+import AlbumUploadModal from "@/components/AlbumUploadModal";
 
 export default function Home() {
+  const [showUpload, setShowUpload] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [linkInput, setLinkInput] = useState("");
+  const [linkLoading, setLinkLoading] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
+
+  const handleUploadSuccess = () => {
+    setRefreshKey((k) => k + 1);
+  };
+
+  const handleParseLink = async () => {
+    const url = linkInput.trim();
+    if (!url) {
+      setLinkError("请粘贴网易云音乐链接");
+      return;
+    }
+    setLinkLoading(true);
+    setLinkError(null);
+    try {
+      const res = await fetch("/api/parse-netease", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "解析失败");
+      setLinkInput("");
+      handleUploadSuccess();
+    } catch (err) {
+      setLinkError(err instanceof Error ? err.message : "解析失败");
+    } finally {
+      setLinkLoading(false);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <div className="mx-auto min-h-screen max-w-6xl px-4 py-6 pb-24 sm:px-6 sm:py-8">
+      {/* Header */}
+      <header className="mb-10 text-center">
+        <h1 className="text-4xl font-bold tracking-tight text-[var(--ink)] sm:text-5xl">
+          🎵 专辑封面墙
+        </h1>
+        <p className="mt-3 text-[var(--ink-muted)]">
+          上传音乐专辑封面，自动摆放成你的专属收藏墙
+        </p>
+      </header>
+
+      {/* 网易云链接快捷添加 */}
+      <section className="mb-8">
+        <div className="scrapbook-card rounded-2xl p-4 sm:p-5">
+          <p className="mb-3 text-sm font-medium text-[var(--ink)]">
+            粘贴网易云链接，一键添加
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+            <input
+              type="text"
+              value={linkInput}
+              onChange={(e) => {
+                setLinkInput(e.target.value);
+                setLinkError(null);
+              }}
+              onPaste={(e) => {
+                setLinkInput(e.clipboardData.getData("text"));
+                setLinkError(null);
+              }}
+              placeholder="https://music.163.com/song?id=..."
+              className="flex-1 rounded-lg border border-[var(--paper-dark)] bg-white px-4 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--ink-muted)]"
+            />
+            <button
+              onClick={handleParseLink}
+              disabled={linkLoading}
+              className="shrink-0 rounded-lg bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:bg-[var(--accent-light)] disabled:opacity-60"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+              {linkLoading ? "解析中..." : "添加"}
+            </button>
+          </div>
+          {linkError && (
+            <p className="mt-2 text-sm text-red-500">{linkError}</p>
+          )}
+          <p className="mt-2 text-xs text-[var(--ink-muted)]">
+            支持歌曲、专辑链接
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      </section>
+
+      {/* Upload & Grid */}
+      <section>
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-lg font-medium text-[var(--ink-muted)]">
+            我的收藏
+          </h2>
+          <button
+            onClick={() => setShowUpload(true)}
+            className="flex items-center gap-2 rounded-full bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-light)]"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <span className="text-lg">+</span> 上传封面
+          </button>
         </div>
-      </main>
+        <AlbumGrid key={refreshKey} />
+      </section>
+
+      {/* FAB for mobile */}
+      <button
+        onClick={() => setShowUpload(true)}
+        className="fixed bottom-6 right-6 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--accent)] text-2xl text-white shadow-lg transition-transform hover:scale-105 sm:hidden"
+        aria-label="添加专辑"
+      >
+        +
+      </button>
+
+      {showUpload && (
+        <AlbumUploadModal
+          onClose={() => setShowUpload(false)}
+          onSuccess={handleUploadSuccess}
+        />
+      )}
     </div>
   );
 }
