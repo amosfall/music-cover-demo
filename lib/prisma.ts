@@ -1,26 +1,47 @@
-// 云端 PostgreSQL 用 - 部署时替换 lib/prisma.ts 内容为此文件内容
+// 云端 PostgreSQL 用 - 通过 pg Pool + @prisma/adapter-pg 连接 Neon
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient;
+  pool: Pool;
+};
 
-function createPrismaClient() {
+function createPool() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     throw new Error("DATABASE_URL environment variable is not set");
   }
-  
-  const pool = new Pool({ connectionString });
+
+  const pool = new Pool({
+    connectionString,
+    max: 5, // Neon 免费版最多支持少量并发
+    idleTimeoutMillis: 30_000, // 空闲 30s 后释放连接（避免被 Neon 强杀）
+    connectionTimeoutMillis: 10_000, // 获取连接超时 10s
+  });
+
+  // 处理 Pool 级别的连接异常，防止进程崩溃
+  pool.on("error", (err) => {
+    console.error("pg Pool: unexpected error on idle client", err.message);
+  });
+
+  return pool;
+}
+
+function createPrismaClient(pool: Pool) {
   const adapter = new PrismaPg(pool);
-  
+
   return new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
 }
 
-export const prisma =
-  globalForPrisma.prisma ?? createPrismaClient();
+const pool = globalForPrisma.pool ?? createPool();
+export const prisma = globalForPrisma.prisma ?? createPrismaClient(pool);
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.pool = pool;
+  globalForPrisma.prisma = prisma;
+}

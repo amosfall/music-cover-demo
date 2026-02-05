@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
-import { saveImage } from "@/lib/storage";
+import { saveImage, isVercel, hasBlobToken } from "@/lib/storage";
+import { isDbConnectionError, withDbRetry } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -88,8 +89,18 @@ async function fetchViaNeteaseApi(
   }
 }
 
+/**
+ * 下载封面并保存到存储。
+ * 在 Vercel 环境如果没有配置 Blob 存储，则直接使用原始 CDN URL。
+ */
 async function downloadAndSaveCover(picUrl: string): Promise<string> {
   if (!picUrl?.startsWith("http")) throw new Error("无效的封面地址");
+
+  // Vercel 上没有 Blob Token 时，直接使用网易云 CDN 链接（避免 EROFS 错误）
+  if (isVercel && !hasBlobToken) {
+    return picUrl;
+  }
+
   const res = await fetch(picUrl, {
     headers: {
       "User-Agent":
@@ -153,16 +164,18 @@ export async function POST(request: NextRequest) {
 
     const imageUrl = await downloadAndSaveCover(info.picUrl);
 
-    const album = await prisma.albumCover.create({
-      data: {
-        imageUrl,
-        albumName: info.albumName,
-        artistName: info.artistName || null,
-        releaseYear: null,
-        genre: null,
-        notes: null,
-      },
-    });
+    const album = await withDbRetry(() =>
+      prisma.albumCover.create({
+        data: {
+          imageUrl,
+          albumName: info.albumName,
+          artistName: info.artistName || null,
+          releaseYear: null,
+          genre: null,
+          notes: null,
+        },
+      })
+    );
 
     return NextResponse.json({
       success: true,
@@ -174,6 +187,10 @@ export async function POST(request: NextRequest) {
       error instanceof Error
         ? error.message
         : "解析失败，请确认 NeteaseCloudMusicApi 已运行且 NETEASE_API_URL 正确";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const isConn = isDbConnectionError(error);
+    const finalMsg = isConn
+      ? "数据库连接被断开（已自动重试一次仍失败）。请将 DATABASE_URL 改为 Neon 的「Pooled connection」连接串并重启。"
+      : msg;
+    return NextResponse.json({ error: finalMsg }, { status: 500 });
   }
 }

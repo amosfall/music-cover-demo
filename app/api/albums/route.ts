@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { withDbRetry } from "@/lib/db";
 
 export async function GET() {
   try {
-    const items = await prisma.albumCover.findMany({
-      orderBy: { createdAt: "desc" },
-    });
+    const items = await withDbRetry(() =>
+      prisma.albumCover.findMany({
+        orderBy: { createdAt: "desc" },
+      })
+    );
     return NextResponse.json(items);
   } catch (error) {
     console.error("Failed to fetch albums:", error);
@@ -28,16 +31,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const item = await prisma.albumCover.create({
-      data: {
-        imageUrl,
-        albumName,
-        artistName: artistName ?? null,
-        releaseYear: releaseYear ?? null,
-        genre: genre ?? null,
-        notes: notes ?? null,
-      },
-    });
+    const item = await withDbRetry(() =>
+      prisma.albumCover.create({
+        data: {
+          imageUrl,
+          albumName,
+          artistName: artistName ?? null,
+          releaseYear: releaseYear ?? null,
+          genre: genre ?? null,
+          notes: notes ?? null,
+        },
+      })
+    );
 
     return NextResponse.json(item);
   } catch (error) {
