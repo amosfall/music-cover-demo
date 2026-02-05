@@ -44,3 +44,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# cursor
+.cursor/
+
+# uploaded images (user-generated content)
+/public/albums/*.jpg
+/public/albums/*.png
+/public/albums/*.JPG
+/public/albums/*.jpeg
+
+# test files
+test-*.ts

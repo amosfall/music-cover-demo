@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { saveImage } from "@/lib/storage";
+import { isDbConnectionError, withDbRetry } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -153,16 +154,18 @@ export async function POST(request: NextRequest) {
 
     const imageUrl = await downloadAndSaveCover(info.picUrl);
 
-    const album = await prisma.albumCover.create({
-      data: {
-        imageUrl,
-        albumName: info.albumName,
-        artistName: info.artistName || null,
-        releaseYear: null,
-        genre: null,
-        notes: null,
-      },
-    });
+    const album = await withDbRetry(() =>
+      prisma.albumCover.create({
+        data: {
+          imageUrl,
+          albumName: info.albumName,
+          artistName: info.artistName || null,
+          releaseYear: null,
+          genre: null,
+          notes: null,
+        },
+      })
+    );
 
     return NextResponse.json({
       success: true,
@@ -174,6 +177,10 @@ export async function POST(request: NextRequest) {
       error instanceof Error
         ? error.message
         : "解析失败，请确认 NeteaseCloudMusicApi 已运行且 NETEASE_API_URL 正确";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const isConn = isDbConnectionError(error);
+    const finalMsg = isConn
+      ? "数据库连接被断开（已自动重试一次仍失败）。请将 DATABASE_URL 改为 Neon 的「Pooled connection」连接串并重启。"
+      : msg;
+    return NextResponse.json({ error: finalMsg }, { status: 500 });
   }
 }
