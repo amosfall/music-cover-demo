@@ -3,6 +3,7 @@
 import { useState } from "react";
 import AlbumGrid from "@/components/AlbumGrid";
 import AlbumUploadModal from "@/components/AlbumUploadModal";
+import TabNav from "@/components/TabNav";
 
 export default function Home() {
   const [showUpload, setShowUpload] = useState(false);
@@ -45,11 +46,14 @@ export default function Home() {
       {/* Header */}
       <header className="mb-10 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-[var(--ink)] sm:text-5xl">
-          🎵 专辑封面墙
+          🎵 音乐收藏
         </h1>
         <p className="mt-3 text-[var(--ink-muted)]">
-          上传音乐专辑封面，自动摆放成你的专属收藏墙
+          记录打动你的旋律与词句
         </p>
+        <div className="mt-5 flex justify-center">
+          <TabNav />
+        </div>
       </header>
 
       {/* 网易云链接快捷添加 */}

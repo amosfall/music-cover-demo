@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "专辑封面墙 | 音乐收藏",
-  description: "上传音乐专辑封面，自动摆放成你的专属收藏墙",
+  title: "音乐收藏 | 封面墙 & 歌词墙",
+  description: "收藏专辑封面，记录打动你的歌词",
 };
 
 export default function RootLayout({

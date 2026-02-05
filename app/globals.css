@@ -83,3 +83,82 @@ body {
 .album-cover-inner {
   position: relative;
 }
+
+/* ===== 歌词墙 ===== */
+.lyrics-wall {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  padding: 1rem 0;
+}
+
+@media (min-width: 640px) {
+  .lyrics-wall {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lyrics-wall {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.75rem;
+  }
+}
+
+.lyrics-card {
+  background: #fffefc;
+  box-shadow: var(--shadow-card);
+  border: 1px solid rgba(139, 115, 85, 0.1);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+}
+
+.lyrics-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(44, 44, 44, 0.12);
+}
+
+.lyrics-text {
+  font-family: "Georgia", "Noto Serif SC", "Source Han Serif SC", serif;
+  font-style: italic;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: var(--ink);
+  position: relative;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--accent-light);
+}
+
+/* Tab 导航 */
+.tab-nav {
+  display: inline-flex;
+  gap: 0.25rem;
+  background: rgba(139, 115, 85, 0.08);
+  border-radius: 9999px;
+  padding: 0.25rem;
+}
+
+.tab-nav a {
+  padding: 0.5rem 1.25rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ink-muted);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.tab-nav a:hover {
+  color: var(--ink);
+}
+
+.tab-nav a.active {
+  background: var(--accent);
+  color: white;
+}
