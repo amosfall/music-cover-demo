@@ -45,11 +45,11 @@ export default function Home() {
     <div className="mx-auto min-h-screen max-w-6xl px-4 py-6 pb-24 sm:px-6 sm:py-8">
       {/* Header */}
       <header className="mb-10 text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-[var(--ink)] sm:text-5xl">
-          🎵 音乐收藏
+        <h1 className="font-song text-4xl font-bold tracking-tight text-[var(--ink)] sm:text-5xl">
+          音乐浮墙
         </h1>
-        <p className="mt-3 text-[var(--ink-muted)]">
-          记录打动你的旋律与词句
+        <p className="font-song mt-3 text-[var(--ink-muted)]">
+          「找到自由，就找到歌声」
         </p>
         <div className="mt-5 flex justify-center">
           <TabNav />
@@ -89,7 +89,7 @@ export default function Home() {
             <p className="mt-2 text-sm text-red-500">{linkError}</p>
           )}
           <p className="mt-2 text-xs text-[var(--ink-muted)]">
-            支持歌曲、专辑链接
+            支持歌曲链接
           </p>
         </div>
       </section>

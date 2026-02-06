@@ -37,6 +37,14 @@ body {
   min-height: 100vh;
 }
 
+.font-song {
+  font-family: "SimSun", "宋体", "STSong", "华文宋体", serif;
+}
+
+.font-kai {
+  font-family: "KaiTi", "楷体", "STKaiti", "华文楷体", serif;
+}
+
 /* Journal-style decorative elements */
 .journal-page {
   background: #fafafa;

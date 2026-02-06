@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "音乐收藏 | 封面墙 & 歌词墙",
+  title: "音乐浮墙 | 封面墙 & 歌词墙",
   description: "收藏专辑封面，记录打动你的歌词",
 };
 
@@ -25,9 +25,12 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased journal-page paper-texture`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased journal-page paper-texture min-h-screen flex flex-col`}
       >
-        {children}
+        <div className="flex-1">{children}</div>
+        <footer className="py-6 text-center text-xs italic text-[var(--ink-muted)] opacity-50">
+          Created by Aki
+        </footer>
       </body>
     </html>
   );

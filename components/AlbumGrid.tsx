@@ -54,7 +54,14 @@ export default function AlbumGrid() {
   }
 
   const list = Array.isArray(items) ? items : [];
-  if (list.length === 0) {
+  // 按 albumName 去重，只保留每个专辑的第一条记录
+  const seenNames = new Set<string>();
+  const listDeduped = list.filter((item) => {
+    if (seenNames.has(item.albumName)) return false;
+    seenNames.add(item.albumName);
+    return true;
+  });
+  if (listDeduped.length === 0) {
     return (
       <div className="flex min-h-[40vh] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[var(--accent-light)]/50 bg-white/30 p-12 text-center">
         <span className="mb-4 text-6xl opacity-50">🎵</span>
@@ -68,7 +75,7 @@ export default function AlbumGrid() {
 
   return (
     <div className="album-wall">
-      {list.map((item, index) => (
+      {listDeduped.map((item, index) => (
         <div
           key={item.id}
           className="album-cover-wrapper group"
