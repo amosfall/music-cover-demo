@@ -74,8 +74,8 @@ export default function AlbumGrid() {
           className="album-cover-wrapper group"
           style={getRandomStyle(index)}
         >
-          <div className="album-cover-inner">
-            <div className="relative aspect-square overflow-hidden rounded-lg bg-[var(--paper-dark)] shadow-lg transition-all duration-300 group-hover:scale-105 group-hover:shadow-xl group-hover:z-50">
+          <div className="album-cover-inner relative">
+            <div className="relative aspect-square overflow-hidden rounded-lg bg-[var(--paper-dark)] shadow-lg transition-all duration-300 group-hover:scale-105 group-hover:shadow-xl">
               <Image
                 src={item.imageUrl}
                 alt={item.albumName}
@@ -84,6 +84,12 @@ export default function AlbumGrid() {
                 sizes="(max-width: 640px) 45vw, (max-width: 1024px) 22vw, 180px"
               />
             </div>
+            <button
+              onClick={(e) => handleDelete(item.id, e)}
+              className="absolute top-1 right-1 z-10 rounded-full bg-black/50 px-2 py-0.5 text-xs text-white opacity-0 shadow backdrop-blur-sm transition-opacity hover:bg-red-600 group-hover:opacity-100"
+            >
+              删除
+            </button>
             <div className="mt-2 text-center">
               <p className="truncate text-sm font-medium text-[var(--ink)]">
                 {item.albumName}
@@ -94,12 +100,6 @@ export default function AlbumGrid() {
                 </p>
               )}
             </div>
-            <button
-              onClick={(e) => handleDelete(item.id, e)}
-              className="absolute -top-1 -right-1 rounded-full bg-red-500 px-2 py-0.5 text-xs text-white opacity-0 shadow transition-opacity hover:bg-red-600 group-hover:opacity-100"
-            >
-              删除
-            </button>
           </div>
         </div>
       ))}

@@ -9,9 +9,53 @@ export const dynamic = "force-dynamic";
 
 type ParseResult = { type: "song" | "album" | "playlist"; id: string } | null;
 
+/** 从输入字符串中提取真实 URL，去掉末尾 (@网易云音乐) 等文字 */
+function extractAndCleanUrl(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return "";
+
+  // 提取第一个 http(s) URL
+  const urlMatch = trimmed.match(/https?:\/\/[^\s\u200b\u200c\u200d\ufffc]+/);
+  let url = urlMatch ? urlMatch[0] : trimmed;
+
+  // 去掉可能粘在 URL 末尾的 (@网易云音乐)、（@xxx） 等
+  url = url
+    .replace(/\s*\(@[^)]*\)\s*$/i, "")
+    .replace(/\s*（@[^）]*）\s*$/g, "")
+    .replace(/(@[\u4e00-\u9fff\w]+)\s*$/g, "")
+    .replace(/[\s）\)\u4e00-\u9fff]+$/g, "")
+    .trim();
+
+  return url.startsWith("http://") || url.startsWith("https://") ? url : "";
+}
+
+/** 短链接重定向：若为 163cn.tv 则从 302 Location 头提取真实长链接 */
+async function resolveShortLink(url: string): Promise<string> {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    if (host !== "163cn.tv" && !host.endsWith(".163cn.tv")) {
+      return url;
+    }
+    // 用 manual 模式拿到 302 的 Location，避免被后续 HTML 页面覆盖
+    const res = await fetch(url, {
+      redirect: "manual",
+      headers: { "User-Agent": "Mozilla/5.0" },
+    });
+    const location = res.headers.get("location");
+    console.log("[parse-netease] 163cn.tv redirect location:", location);
+    if (location && location.startsWith("http")) {
+      return location;
+    }
+    return url;
+  } catch {
+    return url;
+  }
+}
+
 function parseNeteaseUrl(url: string): ParseResult {
   try {
     const trimmed = url.trim();
+    // 主站格式：music.163.com/#/song?id=123 或 /song/123
     const mainMatch = trimmed.match(
       /music\.163\.com[^/]*\/(?:#\/)?(song|album|playlist)(?:\?id=|\/)(\d+)/i
     );
@@ -23,6 +67,9 @@ function parseNeteaseUrl(url: string): ParseResult {
     }
     const songMatch = trimmed.match(/music\.163\.com[^/]*\/song\?id=(\d+)/i);
     if (songMatch) return { type: "song", id: songMatch[1] };
+    const albumMatch = trimmed.match(/music\.163\.com[^/]*\/album\?id=(\d+)/i);
+    if (albumMatch) return { type: "album", id: albumMatch[1] };
+    // 兜底：任意 ?id= 或 &id=
     const idMatch = trimmed.match(/[?&]id=(\d+)/);
     if (idMatch) return { type: "song", id: idMatch[1] };
     return null;
@@ -155,18 +202,35 @@ async function downloadAndSaveCover(picUrl: string): Promise<string> {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const url = body?.url?.trim();
-    if (!url) {
+    const rawInput = body?.url?.trim();
+    if (!rawInput) {
       return NextResponse.json(
         { error: "请输入网易云音乐链接" },
         { status: 400 }
       );
     }
 
+    // 1. 链接清洗
+    let url = extractAndCleanUrl(rawInput);
+    console.log("[parse-netease] rawInput:", JSON.stringify(rawInput).slice(0, 300));
+    console.log("[parse-netease] cleaned url:", JSON.stringify(url));
+    if (!url) {
+      return NextResponse.json(
+        { error: "链接格式不正确，请尝试复制歌曲的长链接（未提取到URL）" },
+        { status: 400 }
+      );
+    }
+
+    // 2. 短链接重定向（163cn.tv）
+    url = await resolveShortLink(url);
+    console.log("[parse-netease] after redirect:", url);
+
+    // 3. 统一提取 songId / albumId
     const parsed = parseNeteaseUrl(url);
+    console.log("[parse-netease] parsed:", parsed);
     if (!parsed) {
       return NextResponse.json(
-        { error: "无法识别链接格式，请粘贴完整的歌曲或专辑链接" },
+        { error: `链接格式不正确，请尝试复制歌曲的长链接（解析后URL: ${url.slice(0, 100)}）` },
         { status: 400 }
       );
     }
