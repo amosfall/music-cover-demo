@@ -82,6 +82,28 @@ DATABASE_URL="你的PostgreSQL连接串" npx prisma db push
 
 ---
 
+### 部署后：首次同步数据库（解决「分类功能需执行 npx prisma db push」）
+
+若线上出现提示「分类功能需执行 npx prisma db push 后完整可用，当前仅显示全部专辑」，说明**生产环境数据库里还没有分类表**，需要在本机用**生产库连接串**执行一次同步：
+
+1. 在 Vercel 项目 → **Settings** → **Environment Variables** 中复制 `DATABASE_URL` 的值（生产用 Postgres 连接串）。
+2. 在项目根目录执行（把 `postgresql://...` 换成你复制的连接串，注意密码中的特殊字符要 URL 编码）：
+
+```bash
+DATABASE_URL="postgresql://用户:密码@主机:5432/库名?sslmode=require" npx prisma db push
+```
+
+或使用脚本（需先在当前终端设置环境变量）：
+
+```bash
+export DATABASE_URL="你的生产环境连接串"
+npm run db:push
+```
+
+3. 执行成功后，刷新线上页面，分类功能即可正常使用。
+
+---
+
 ## 方案二：Railway 一键部署
 
 Railway 可同时运行 Next.js 和 PostgreSQL，无需拆分服务。

@@ -436,7 +436,7 @@ export default function Home() {
         </div>
         {categoriesFallback && (
           <p className="mb-2 text-xs text-amber-600">
-            分类功能需执行 <code className="rounded bg-amber-100 px-1">npx prisma db push</code> 后完整可用，当前仅显示全部专辑
+            分类功能需同步生产数据库后可用，当前仅显示全部专辑。请在本地执行：<code className="rounded bg-amber-100 px-1">DATABASE_URL=&quot;你的生产连接串&quot; npx prisma db push</code>，详见 <a href="https://github.com/amosfall/music-cover-demo/blob/main/DEPLOYMENT.md" target="_blank" rel="noopener noreferrer" className="underline">DEPLOYMENT.md</a>
           </p>
         )}
         <div className="mb-4 space-y-2">

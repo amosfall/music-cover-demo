@@ -126,12 +126,26 @@ export default function LyricsWallPage() {
         <header className="flex items-center justify-between px-6 pt-6 sm:px-10 sm:pt-8">
           <TabNav />
         </header>
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+        <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center px-4">
           <p className="text-5xl opacity-20">&#x1F3B6;</p>
           <p className="text-lg font-light text-gray-400">还没有歌词数据</p>
-          <p className="text-sm text-gray-400/60">
-            添加歌曲链接或手动输入歌词后，歌词会在这里漂浮展示
+          <p className="text-sm text-gray-400/60 max-w-sm">
+            在封面页粘贴网易云歌曲链接抓取，或在歌词页手动添加，歌词会在这里漂浮展示
           </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <a
+              href="/"
+              className="rounded-full bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white no-underline transition-opacity hover:opacity-90"
+            >
+              去封面页添加歌曲
+            </a>
+            <a
+              href="/lyrics"
+              className="rounded-full border border-[var(--paper-dark)] bg-white px-5 py-2.5 text-sm font-medium text-[var(--ink)] no-underline transition-colors hover:bg-[var(--paper-dark)]"
+            >
+              去歌词页手动添加
+            </a>
+          </div>
         </div>
       </div>
     );

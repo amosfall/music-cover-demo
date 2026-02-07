@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "db:push": "prisma db push",
     "netease-api": "PORT=3002 npx NeteaseCloudMusicApi",
     "build": "prisma generate && next build",
     "start": "next start",
