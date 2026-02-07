@@ -32,7 +32,7 @@ export async function PUT(
     return NextResponse.json({ error: "请求体格式错误" }, { status: 400 });
   }
 
-  const { imageUrl, albumName, artistName, releaseYear, genre, notes, categoryId } = body;
+  const { imageUrl, albumName, artistName, releaseYear, genre, notes, categoryId, albumId, showOnLyricsWall } = body;
   console.log("[albums PUT] 收到请求:", { id, bodyKeys: Object.keys(body), categoryId });
 
   try {
@@ -44,6 +44,8 @@ export async function PUT(
     if (genre !== undefined) updateData.genre = genre;
     if (notes !== undefined) updateData.notes = notes;
     if (categoryId !== undefined) updateData.categoryId = categoryId || null;
+    if (albumId !== undefined) updateData.albumId = typeof albumId === "string" ? albumId.trim() || null : null;
+    if (showOnLyricsWall !== undefined) updateData.showOnLyricsWall = Boolean(showOnLyricsWall);
 
     const item = await withDbRetry(() =>
       prisma.albumCover.update({

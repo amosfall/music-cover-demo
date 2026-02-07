@@ -44,6 +44,8 @@ export default function Home() {
   const [editingCategoryName, setEditingCategoryName] = useState("");
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showSearchOverlay, setShowSearchOverlay] = useState(false);
+  const [backfillLyricsLoading, setBackfillLyricsLoading] = useState(false);
+  const [backfillLyricsMessage, setBackfillLyricsMessage] = useState<string | null>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const searchOverlayInputRef = useRef<HTMLInputElement>(null);
 
@@ -215,10 +217,12 @@ export default function Home() {
           setLinkError("歌单内暂无曲目");
           return;
         }
-        const albums = items.map((t: { picUrl: string; albumName?: string; name: string; artistName: string }) => ({
+        const albums = items.map((t: { picUrl: string; albumName?: string; name: string; artistName: string; songId?: string }) => ({
           imageUrl: t.picUrl,
           albumName: t.albumName || t.name,
           artistName: t.artistName || null,
+          songId: t.songId ?? null,
+          songName: t.name ?? null,
         }));
         const batchRes = await fetch("/api/albums/batch", {
           method: "POST",
@@ -352,6 +356,21 @@ export default function Home() {
     }
   };
 
+  const handleBackfillLyrics = async () => {
+    setBackfillLyricsMessage(null);
+    setBackfillLyricsLoading(true);
+    try {
+      const res = await fetch("/api/albums/backfill-lyrics", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "补全失败");
+      setBackfillLyricsMessage(data?.message ?? `已补全 ${data?.updated ?? 0} 条歌词`);
+    } catch (err) {
+      setBackfillLyricsMessage(err instanceof Error ? err.message : "补全歌词失败");
+    } finally {
+      setBackfillLyricsLoading(false);
+    }
+  };
+
   const handleDownloadFromPreview = () => {
     if (!exportPreviewUrl || !exportPreviewFilename) return;
     const link = document.createElement("a");
@@ -426,11 +445,22 @@ export default function Home() {
             </div>
             <button
               type="button"
+              onClick={handleBackfillLyrics}
+              disabled={backfillLyricsLoading}
+              className="rounded-full border border-[var(--paper-dark)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper-dark)] disabled:opacity-60"
+            >
+              {backfillLyricsLoading ? "补全中…" : "补全歌词"}
+            </button>
+            <button
+              type="button"
               onClick={handleClearExceptFirst}
               className="rounded-full border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
             >
               一键清除
             </button>
+            {backfillLyricsMessage && (
+              <span className="text-sm text-[var(--ink-muted)]">{backfillLyricsMessage}</span>
+            )}
             {exportError && <span className="text-sm text-red-500">{exportError}</span>}
           </div>
         </div>

@@ -8,6 +8,8 @@ export type PlaylistTrackItem = {
   artistName: string;
   picUrl: string;
   albumName?: string;
+  /** 网易云歌曲 ID，用于按这首歌拉取歌词 */
+  songId: string;
 };
 
 /**
@@ -126,6 +128,7 @@ export async function POST(request: NextRequest) {
         artistName: artistName || "未知",
         picUrl: picUrl.replace(/^http:/, "https:"),
         albumName,
+        songId: String(tid),
       };
     });
 

@@ -32,35 +32,39 @@ type FragmentStyle = {
   left: string;
   fontSize: string;
   baseOpacity: number;
-  amplitude: number;
-  duration: number;
-  delay: number;
-  rotate: number;
 };
 
-/** 全区域均匀分布，避免左右两团明显区隔 */
+/** 网格排布，整齐不倾斜 */
+const COLS = 5;
+const COL_GAP_PCT = 5;
+
 function generateLayout(count: number): FragmentStyle[] {
   const rand = seededRandom(42);
   const styles: FragmentStyle[] = [];
-  const paddingLeft = 5;
-  const paddingRight = 5;
-  const paddingTop = 6;
-  const paddingBottom = 14;
-  const width = 100 - paddingLeft - paddingRight;
-  const height = 100 - paddingTop - paddingBottom;
+  const padding = 5;
+  const usableW = 100 - padding * 2;
+  const usableH = 100 - padding * 2;
+  const numRows = Math.ceil(count / COLS) || 1;
+  const rowStep = usableH / numRows;
+  const colWidth = (usableW - (COLS - 1) * COL_GAP_PCT) / COLS;
+  let row = 0;
+  let col = 0;
   for (let i = 0; i < count; i++) {
-    const left = paddingLeft + rand() * width;
-    const top = paddingTop + rand() * height;
+    const cellCenterX = padding + col * (colWidth + COL_GAP_PCT) + colWidth / 2;
+    const cellCenterY = padding + row * rowStep + rowStep / 2;
+    const jitterX = (rand() - 0.5) * (colWidth * 0.15);
+    const jitterY = (rand() - 0.5) * (rowStep * 0.2);
     styles.push({
-      top: `${top}%`,
-      left: `${left}%`,
-      fontSize: `${0.8 + rand() * 1.1}rem`,
-      baseOpacity: 0.25 + rand() * 0.6,
-      amplitude: (rand() > 0.5 ? 1 : -1) * (4 + rand() * 8),
-      duration: 3 + rand() * 6,
-      delay: rand() * 4,
-      rotate: (rand() - 0.5) * 12,
+      top: `${cellCenterY + jitterY}%`,
+      left: `${cellCenterX + jitterX}%`,
+      fontSize: `${0.9 + rand() * 0.25}rem`,
+      baseOpacity: 0.35 + rand() * 0.45,
     });
+    col += 1;
+    if (col >= COLS) {
+      col = 0;
+      row += 1;
+    }
   }
   return styles;
 }
@@ -95,9 +99,9 @@ export default function ScatteredLyrics({ fragments, highlightId }: Props) {
               willChange: "transform",
               textAlign: "center",
             }}
-            initial={{ transform: `translateX(-50%) rotate(${s.rotate}deg) scale(1)` }}
+            initial={{ transform: `translate(-50%, -50%) scale(1)` }}
             animate={{
-              transform: `translateX(-50%) rotate(${s.rotate}deg) scale(${isHighlighted ? 1.15 : 1})`,
+              transform: `translate(-50%, -50%) scale(${isHighlighted ? 1.12 : 1})`,
             }}
             transition={{
               transform: {

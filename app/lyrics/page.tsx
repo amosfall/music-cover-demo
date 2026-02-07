@@ -5,6 +5,7 @@ import FloatingLyrics from "@/components/FloatingLyrics";
 import AlbumStrip from "@/components/AlbumStrip";
 import AddLyricsModal from "@/components/AddLyricsModal";
 import TabNav from "@/components/TabNav";
+import { getProxyImageUrl } from "@/lib/proxy-image";
 import type { LyricsCardData } from "@/components/LyricsWall";
 
 export default function LyricsPage() {
@@ -134,15 +135,29 @@ export default function LyricsPage() {
         </div>
       </header>
 
-      {/* 中央漂浮歌词 */}
-      <main className="flex flex-1 items-center justify-center pb-28">
+      {/* 左侧歌词 + 右侧专辑封面，整体居中 */}
+      <main className="flex flex-1 flex-col items-center justify-center gap-6 px-4 pb-28 md:flex-row md:gap-12 md:px-8">
+        <div className="flex min-h-0 items-center justify-center md:max-w-[50%]">
+          {activeItem && (
+            <FloatingLyrics
+              lyrics={activeItem.lyrics}
+              artistName={activeItem.artistName}
+              albumName={activeItem.albumName}
+              itemKey={activeItem.id}
+            />
+          )}
+        </div>
         {activeItem && (
-          <FloatingLyrics
-            lyrics={activeItem.lyrics}
-            artistName={activeItem.artistName}
-            albumName={activeItem.albumName}
-            itemKey={activeItem.id}
-          />
+          <div className="flex shrink-0 items-center justify-center md:w-[min(32vw,280px)]">
+            <div className="relative aspect-square w-full max-w-[200px] overflow-hidden rounded-2xl bg-[var(--paper-dark)] shadow-lg md:max-w-none">
+              <img
+                src={getProxyImageUrl(activeItem.imageUrl)}
+                alt={activeItem.albumName}
+                className="absolute inset-0 h-full w-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+          </div>
         )}
       </main>
 

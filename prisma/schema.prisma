@@ -28,6 +28,10 @@ model AlbumCover {
   songId     String?
   songName   String?
   lyrics     String?
+  /** 网易云专辑 ID，用于「按专辑再拉一次」补歌词 */
+  albumId    String?
+  /** 是否在歌词墙展示，未勾选的不上墙 */
+  showOnLyricsWall Boolean @default(true)
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   createdAt  DateTime  @default(now())
@@ -40,6 +44,8 @@ model LyricsCard {
   albumName  String
   artistName String?
   imageUrl   String
+  /** 是否在歌词墙展示，未勾选的不上墙 */
+  showOnLyricsWall Boolean @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }

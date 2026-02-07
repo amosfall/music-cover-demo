@@ -102,6 +102,8 @@ npm run db:push
 
 3. 执行成功后，刷新线上页面，分类功能即可正常使用。
 
+若本次更新为数据库增加了新字段（如 `albumId`、`showOnLyricsWall` 等），同样需要再执行一次上述 `db push`。
+
 ---
 
 ## 方案二：Railway 一键部署

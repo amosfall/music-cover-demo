@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { saveImage, isVercel, hasBlobToken } from "@/lib/storage";
 import { isDbConnectionError, withDbRetry } from "@/lib/db";
+import { fetchNeteaseLyrics } from "@/lib/netease-lyrics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -106,33 +107,13 @@ type SongInfo = {
   picUrl: string;
   songName: string | null;
   songId: string | null;
+  /** 专辑解析时拉取第一首的歌词，便于出现在歌词墙 */
+  lyrics?: string | null;
 };
 
-/** 获取歌曲歌词，去除时间标签 */
-async function fetchLyrics(baseUrl: string, songId: string): Promise<string> {
-  try {
-    const res = await fetch(
-      `${baseUrl.replace(/\/$/, "")}/lyric?id=${songId}`,
-      { headers: { "User-Agent": "Mozilla/5.0" } }
-    );
-    if (!res.ok) return "";
-    const data = await res.json();
-    const raw: string = data?.lrc?.lyric || "";
-    // 去除 [mm:ss.xxx] 时间标签，去除空行，去除元信息行（作词/作曲/编曲/制作人等）
-    return raw
-      .replace(/\[\d{2}:\d{2}[.:]\d{2,3}\]/g, "")
-      .split("\n")
-      .map((l: string) => l.trim())
-      .filter((l: string) => {
-        if (!l) return false;
-        // 过滤元信息行
-        if (/^(作词|作曲|编曲|制作人|混音|母带|录音|吉他|贝斯|鼓|键盘|和声|监制|出品|词|曲|编)\s*[：:]/i.test(l)) return false;
-        return true;
-      })
-      .join("\n");
-  } catch {
-    return "";
-  }
+/** 获取歌曲歌词（委托给 lib，此处保留别名供专辑分支调用） */
+function fetchLyrics(baseUrl: string, songId: string): Promise<string | null> {
+  return fetchNeteaseLyrics(baseUrl, songId);
 }
 
 const FETCH_TIMEOUT_MS = 60000; // Railway 冷启动可能需 30-60 秒
@@ -175,12 +156,22 @@ async function fetchViaNeteaseApi(
     const artistName = Array.isArray(artist)
       ? artist.map((a: { name?: string }) => a?.name).filter(Boolean).join(", ")
       : (artist?.name as string) || "";
+    const songs = album.songs ?? album.tracks;
+    const firstSong = Array.isArray(songs) && songs.length > 0 ? songs[0] : null;
+    const firstSongId = firstSong ? String((firstSong as { id?: number }).id ?? (firstSong as { id?: string }).id ?? "") : null;
+    const firstSongName = firstSong ? ((firstSong as { name?: string }).name ?? null) : null;
+    let lyrics: string | null = null;
+    if (firstSongId && firstSongId !== "0") {
+      const raw = await fetchLyrics(url, firstSongId);
+      lyrics = raw ?? null;
+    }
     return {
       albumName: album.name,
       artistName,
       picUrl: (album.picUrl || album.pic || "").replace(/^http:/, "https:"),
-      songName: null,
-      songId: null,
+      songName: firstSongName ?? null,
+      songId: firstSongId ?? null,
+      lyrics: lyrics ?? null,
     };
     }
   } finally {
@@ -278,11 +269,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 如果是歌曲链接，同步获取歌词
-    let lyrics: string | null = null;
-    if (parsed.type === "song" && info.songId) {
-      lyrics = await fetchLyrics(apiBase, info.songId);
-      if (!lyrics) lyrics = null;
+    // 歌词：单曲链接在此拉取；专辑链接已在 fetchViaNeteaseApi 中拉取第一首
+    let lyrics: string | null = info.lyrics ?? null;
+    if (parsed.type === "song" && info.songId && !lyrics) {
+      const raw = await fetchLyrics(apiBase, info.songId);
+      lyrics = raw ?? null;
     }
 
     const imageUrl = await downloadAndSaveCover(info.picUrl);
@@ -296,6 +287,7 @@ export async function POST(request: NextRequest) {
           songId: info.songId || null,
           songName: info.songName || null,
           lyrics,
+          albumId: parsed.type === "album" ? parsed.id : null,
           releaseYear: null,
           genre: null,
           notes: null,

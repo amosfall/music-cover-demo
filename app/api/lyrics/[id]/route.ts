@@ -9,9 +9,20 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { lyrics, albumName, artistName, imageUrl } = body;
+    const { lyrics, albumName, artistName, imageUrl, showOnLyricsWall } = body;
 
-    if (!lyrics?.trim() || !albumName?.trim() || !imageUrl?.trim()) {
+    const updateData: Record<string, unknown> = {};
+    if (lyrics !== undefined) updateData.lyrics = lyrics?.trim() ?? "";
+    if (albumName !== undefined) updateData.albumName = albumName?.trim() ?? "";
+    if (artistName !== undefined) updateData.artistName = artistName?.trim() || null;
+    if (imageUrl !== undefined) updateData.imageUrl = imageUrl?.trim() ?? "";
+    if (showOnLyricsWall !== undefined) updateData.showOnLyricsWall = Boolean(showOnLyricsWall);
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ error: "未提供可更新字段" }, { status: 400 });
+    }
+    const isContentUpdate = "lyrics" in updateData || "albumName" in updateData || "imageUrl" in updateData;
+    if (isContentUpdate && (!lyrics?.trim() || !albumName?.trim() || !imageUrl?.trim())) {
       return NextResponse.json(
         { error: "歌词、专辑名和封面图不能为空" },
         { status: 400 }
@@ -21,12 +32,7 @@ export async function PUT(
     const item = await withDbRetry(() =>
       prisma.lyricsCard.update({
         where: { id },
-        data: {
-          lyrics: lyrics.trim(),
-          albumName: albumName.trim(),
-          artistName: artistName?.trim() || null,
-          imageUrl: imageUrl.trim(),
-        },
+        data: updateData as Parameters<typeof prisma.lyricsCard.update>[0]["data"],
       })
     );
 
