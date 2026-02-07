@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
+import { getProxyImageUrl } from "@/lib/proxy-image";
 import CurvedLyrics from "./CurvedLyrics";
 import AddLyricsModal from "./AddLyricsModal";
 
@@ -78,12 +78,11 @@ export default function LyricsWall() {
             {/* 底部：封面 + 信息 + 操作按钮 */}
             <div className="flex items-center gap-3 border-t border-[var(--paper-dark)] pt-3">
               <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-[var(--paper-dark)] shadow-sm">
-                <Image
-                  src={item.imageUrl}
+                <img
+                  src={getProxyImageUrl(item.imageUrl)}
                   alt={item.albumName}
-                  fill
-                  className="object-cover"
-                  sizes="40px"
+                  className="absolute inset-0 h-full w-full object-cover"
+                  referrerPolicy="no-referrer"
                 />
               </div>
               <p className="min-w-0 flex-1 truncate text-xs text-[var(--ink-muted)]">

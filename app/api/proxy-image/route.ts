@@ -31,13 +31,33 @@ export async function GET(request: NextRequest) {
     return new NextResponse("Invalid URL", { status: 400 });
   }
   try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; MusicWall/1.0)" },
-      cache: "force-cache",
-    });
+    const parsed = new URL(url);
+    const isNetease = parsed.hostname.endsWith("music.126.net");
+    const baseHeaders: Record<string, string> = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+    };
+    let res: Response;
+    if (isNetease) {
+      res = await fetch(url, {
+        headers: { ...baseHeaders, Referer: "https://music.163.com/" },
+        cache: "no-store",
+      });
+      if (!res.ok && res.status === 403) {
+        res = await fetch(url, {
+          headers: baseHeaders,
+          cache: "no-store",
+        });
+      }
+    } else {
+      res = await fetch(url, { headers: baseHeaders, cache: "no-store" });
+    }
     if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.startsWith("image/")) {
+      throw new Error("Response is not an image");
+    }
     const blob = await res.blob();
-    const contentType = res.headers.get("content-type") || "image/jpeg";
     return new NextResponse(blob, {
       headers: {
         "Content-Type": contentType,

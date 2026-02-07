@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { getProxyImageUrl } from "@/lib/proxy-image";
 import {
   DndContext,
   closestCenter,
@@ -68,11 +69,9 @@ function formatDate(d: Date) {
 
 function getImageSrc(url: string, uniqueId: string): string {
   if (!url) return "";
-  const idSuffix = `_id=${encodeURIComponent(uniqueId)}`;
-  if (/^https?:\/\//.test(url) && (url.includes("music.126.net") || url.includes("blob.vercel-storage.com"))) {
-    return `/api/proxy-image?url=${encodeURIComponent(url)}&${idSuffix}`;
-  }
-  return `${url}${url.includes("?") ? "&" : "?"}${idSuffix}`;
+  const base = getProxyImageUrl(url);
+  const sep = base.includes("?") ? "&" : "?";
+  return `${base}${sep}_id=${encodeURIComponent(uniqueId)}`;
 }
 
 /* SortablePolaroid：封装单张专辑，合并 dnd-kit transform 与网格旋转 */

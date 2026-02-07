@@ -131,3 +131,15 @@ Railway 可同时运行 Next.js 和 PostgreSQL，无需拆分服务。
 
 **Q: 网易云 API 必须单独部署吗？**  
 是的。Vercel 为 Serverless，不能长期跑 Node 服务，需在 Railway、Render 等平台单独部署 NeteaseCloudMusicApi。
+
+---
+
+## 排查清单（构建 / 运行问题）
+
+| 现象 | 原因 | 处理 |
+|------|------|------|
+| **构建失败**：`PrismaConfigEnvError: Cannot resolve environment variable: DATABASE_URL` | 在 Docker/CI 中执行 `npm ci` 时，`postinstall` 会跑 `prisma generate`，而当时未设置 `DATABASE_URL`。 | 项目已在 `prisma.config.ts` 中做占位：无 `DATABASE_URL` 时使用占位 URL，仅用于生成 Client，不连真实库。确保代码为最新并重新构建。若仍报错，检查部署平台是否在构建阶段注入了旧版配置或缓存。 |
+| **线上提示**：「分类功能需执行 npx prisma db push 后完整可用」 | 生产库尚未执行过 schema 同步，缺少 `Category` 等表。 | 在本地用**生产环境**的 `DATABASE_URL` 执行一次：`DATABASE_URL="生产连接串" npx prisma db push`。详见上文「部署后：首次同步数据库」。 |
+| **歌词墙一直「还没有歌词数据」** | 歌词墙数据来自：① 封面页通过链接抓取的**单曲**（带歌词）；② 歌词页手动添加的卡片。两者都没有则为空。 | 在封面页用底部胶囊粘贴网易云**单曲**链接抓取，或在「歌词」页点击「添加歌词」手动添加一条。 |
+| **粘贴链接后添加失败 / 超时** | 未配置 `NETEASE_API_URL` 或自建网易云 API 未启动、被墙或限流。 | 在 Vercel 环境变量中配置 `NETEASE_API_URL` 指向自建 API（如 Railway 部署的 NeteaseCloudMusicApi）。可访问 `/api/check-netease` 做连通性检查。 |
+| **图片不显示 / 上传失败** | 未配置 `BLOB_READ_WRITE_TOKEN` 或 Blob 未正确绑定项目。 | 在 Vercel → Storage → Blob 创建 Store 并绑定到项目，确保环境变量中有 `BLOB_READ_WRITE_TOKEN`。 |

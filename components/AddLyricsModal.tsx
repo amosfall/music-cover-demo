@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
+import { getProxyImageUrl } from "@/lib/proxy-image";
 import type { LyricsCardData } from "./LyricsWall";
 
 type Album = {
@@ -424,11 +425,12 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
                   >
                     <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded bg-[var(--paper-dark)]">
                       <Image
-                        src={album.imageUrl}
+                        src={getProxyImageUrl(album.imageUrl)}
                         alt={album.albumName}
                         fill
                         className="object-cover"
                         sizes="40px"
+                        unoptimized
                       />
                     </div>
                     <div className="min-w-0">

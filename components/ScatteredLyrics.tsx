@@ -38,33 +38,22 @@ type FragmentStyle = {
   rotate: number;
 };
 
-const COLS = 2;
-
+/** 全区域均匀分布，避免左右两团明显区隔 */
 function generateLayout(count: number): FragmentStyle[] {
   const rand = seededRandom(42);
-  const rows = Math.max(12, Math.ceil(count / COLS));
-  const slots: { col: number; row: number }[] = [];
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < COLS; c++) slots.push({ col: c, row: r });
-  }
-  for (let i = slots.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [slots[i], slots[j]] = [slots[j], slots[i]];
-  }
-
-  const cellW = 100 / COLS;
-  const cellH = 68 / rows;
   const styles: FragmentStyle[] = [];
+  const paddingLeft = 5;
+  const paddingRight = 5;
+  const paddingTop = 6;
+  const paddingBottom = 14;
+  const width = 100 - paddingLeft - paddingRight;
+  const height = 100 - paddingTop - paddingBottom;
   for (let i = 0; i < count; i++) {
-    const slot = slots[i];
-    if (!slot) continue;
-    const baseLeft = (slot.col + 0.5) * cellW;
-    const baseTop = 8 + (slot.row + 0.5) * cellH;
-    const jitterX = (rand() - 0.5) * cellW * 0.4;
-    const jitterY = (rand() - 0.5) * cellH * 0.5;
+    const left = paddingLeft + rand() * width;
+    const top = paddingTop + rand() * height;
     styles.push({
-      top: `${Math.max(5, Math.min(80, baseTop + jitterY))}%`,
-      left: `${Math.max(8, Math.min(92, baseLeft + jitterX))}%`,
+      top: `${top}%`,
+      left: `${left}%`,
       fontSize: `${0.8 + rand() * 1.1}rem`,
       baseOpacity: 0.25 + rand() * 0.6,
       amplitude: (rand() > 0.5 ? 1 : -1) * (4 + rand() * 8),

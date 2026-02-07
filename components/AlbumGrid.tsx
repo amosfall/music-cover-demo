@@ -2,34 +2,50 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import { getProxyImageUrl } from "@/lib/proxy-image";
 
-const isExternalCover = (url: string) =>
-  /^https?:\/\//.test(url) && (url.includes("music.126.net") || url.includes("blob.vercel-storage.com"));
+const isExternalUrl = (url: string) => /^https?:\/\//.test(url);
+
+/** 封面加载失败时的占位：灰色底 + 专辑名首字或 🎵 */
+function CoverFallback({ name }: { name: string }) {
+  const char = name?.trim()[0] || "♪";
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-[var(--paper-dark)] text-4xl font-medium text-[var(--ink-muted)]">
+      {char}
+    </div>
+  );
+}
 
 function CoverImage({ src, alt }: { src: string; alt: string }) {
   const [err, setErr] = useState(false);
+  const displaySrc = getProxyImageUrl(src);
+  const isProxy = displaySrc.startsWith("/api/proxy-image");
   if (!src) {
-    return (
-      <div className="flex h-full w-full items-center justify-center text-4xl text-[var(--ink-muted)]">
-        🎵
-      </div>
-    );
+    return <CoverFallback name={alt} />;
   }
   if (err) {
+    return <CoverFallback name={alt} />;
+  }
+  if (isProxy || isExternalUrl(displaySrc)) {
     return (
-      <div className="flex h-full w-full items-center justify-center text-4xl text-[var(--ink-muted)]">
-        🎵
-      </div>
+      <img
+        src={displaySrc}
+        alt={alt}
+        className="h-full w-full object-cover"
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        onError={() => setErr(true)}
+      />
     );
   }
   return (
     <Image
-      src={src}
+      src={displaySrc}
       alt={alt}
       fill
       className="object-cover"
       sizes="(max-width: 640px) 45vw, (max-width: 1024px) 22vw, 180px"
-      unoptimized={isExternalCover(src)}
+      unoptimized
       onError={() => setErr(true)}
     />
   );

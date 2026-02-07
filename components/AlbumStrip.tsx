@@ -1,8 +1,8 @@
 "use client";
 
 import { useRef, useEffect } from "react";
-import Image from "next/image";
 import { motion } from "framer-motion";
+import { getProxyImageUrl } from "@/lib/proxy-image";
 
 export type StripItem = {
   id: string;
@@ -58,13 +58,11 @@ export default function AlbumStrip({ items, activeId, onSelect, onDelete }: Prop
                 transition={{ type: "spring", stiffness: 300, damping: 22 }}
               >
                 <div className="relative h-16 w-16 sm:h-20 sm:w-20">
-                  <Image
-                    src={item.imageUrl}
+                  <img
+                    src={getProxyImageUrl(item.imageUrl)}
                     alt={item.albumName}
-                    fill
-                    className="object-cover"
-                    sizes="80px"
-                    unoptimized={item.imageUrl.startsWith("http")}
+                    className="absolute inset-0 h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
                   />
                 </div>
                 {/* 选中指示点 */}

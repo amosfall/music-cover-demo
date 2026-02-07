@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { getProxyImageUrl } from "@/lib/proxy-image";
 
 type Props = {
   onClose: () => void;
@@ -159,7 +160,7 @@ export default function AlbumUploadModal({ onClose, onSuccess }: Props) {
               <div className="mb-6 flex justify-center">
                 <div className="relative h-28 w-28 overflow-hidden rounded-lg shadow-lg">
                   <img
-                    src={imageUrl}
+                    src={getProxyImageUrl(imageUrl)}
                     alt="封面"
                     className="h-full w-full object-cover"
                   />
