@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { Suspense, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import ScatteredLyrics from "@/components/ScatteredLyrics";
@@ -52,7 +52,7 @@ function saveStripOrder(ids: string[]) {
   }
 }
 
-export default function LyricsWallPage() {
+function LyricsWallContent() {
   const [items, setItems] = useState<WallItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [highlightId, setHighlightId] = useState<string | null>(null);
@@ -496,5 +496,23 @@ export default function LyricsWallPage() {
           document.body
         )}
     </div>
+  );
+}
+
+function LyricsWallLoading() {
+  return (
+    <div className="lyrics-gallery">
+      <div className="flex flex-1 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-transparent" />
+      </div>
+    </div>
+  );
+}
+
+export default function LyricsWallPage() {
+  return (
+    <Suspense fallback={<LyricsWallLoading />}>
+      <LyricsWallContent />
+    </Suspense>
   );
 }
