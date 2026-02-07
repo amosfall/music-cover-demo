@@ -158,18 +158,20 @@ body {
   }
 }
 
-/* 底部专辑封面横栏（安全区适配） */
+/* 底部专辑封面横栏（安全区适配，压在歌词之上） */
 .album-strip {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: 30;
+  z-index: 100;
+  padding-top: 0.75rem;
   padding-bottom: env(safe-area-inset-bottom, 0);
-  background: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-top: 1px solid rgba(0, 0, 0, 0.06);
+  overflow: visible;
 }
 
 /* 隐藏滚动条 */
@@ -202,6 +204,12 @@ body {
   }
 }
 
+@media (max-width: 640px) {
+  .lyrics-wall-container {
+    height: calc(100dvh - 120px);
+  }
+}
+
 .scattered-fragment {
   font-family: "Georgia", "Noto Serif SC", "Source Han Serif SC", serif;
   color: #1a1a1a;
@@ -215,6 +223,42 @@ body {
   text-overflow: ellipsis;
   max-width: min(42vw, 300px);
   text-align: center;
+}
+
+.scattered-fragment.scattered-fragment-clickable {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* 歌词墙选中后居中歌词块：一行一句、可滚动，大字+大行距+居中 */
+.lyrics-wall-center-block {
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* 多首歌时：不居中，从顶部排布、左对齐、每首歌分开 */
+.lyrics-wall-center-block.lyrics-wall-center-block-multi {
+  align-items: stretch;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.lyrics-wall-center-block > div {
+  width: 100%;
+  margin-bottom: 0.85em;
+  text-align: inherit;
+}
+
+.lyrics-wall-center-block > div:last-child {
+  margin-bottom: 0;
+}
+
+.lyrics-wall-center-block-multi > div {
+  text-align: left;
 }
 
 /* 保留 .lyrics-text 用于弹窗预览等场景 */
@@ -240,12 +284,28 @@ body {
 
 .tab-nav a {
   padding: 0.5rem 1.35rem;
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 9999px;
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--ink-muted);
   text-decoration: none;
   transition: all 0.2s ease;
+}
+
+@media (max-width: 640px) {
+  .tab-nav {
+    width: 100%;
+    justify-content: space-around;
+  }
+  .tab-nav a {
+    padding: 0.4rem 0.9rem;
+    font-size: 0.8125rem;
+  }
 }
 
 .tab-nav a:hover {
@@ -376,16 +436,41 @@ body {
   box-shadow: 0 6px 28px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 
-/* 全屏搜索 Overlay：高斯模糊背景 */
+/* 横向滚动区域（如分类）：iOS 滑动顺滑 */
+.scroll-touch {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 全屏搜索 Overlay：与封面/歌词墙 dock 一致的毛玻璃风格 */
 .search-overlay-backdrop {
   position: fixed;
   inset: 0;
   z-index: 50;
-  background: rgba(253, 253, 253, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(253, 253, 253, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
+}
+
+.search-overlay-panel {
+  width: 100%;
+  max-width: calc(100vw - 2rem);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.03);
+}
+
+@media (min-width: 640px) {
+  .search-overlay-panel {
+    max-width: 28rem;
+    border-radius: 1.5rem;
+    padding: 1.5rem;
+  }
 }

@@ -53,24 +53,32 @@ export default function FloatingLyrics({
       <motion.div
         key={itemKey}
         className="flex flex-col items-center gap-2 px-6 sm:gap-3"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        exit="exit"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 5, ease: "easeOut" }}
       >
-        {lines.map((line, i) => (
-          <motion.div key={`${itemKey}-line-${i}`} variants={lineEnter}>
-            <p className="floating-line">{line}</p>
-          </motion.div>
-        ))}
-
-        {/* 歌手 · 专辑 */}
-        <motion.p
-          className="mt-6 text-sm tracking-widest text-gray-400/80 sm:text-base"
-          variants={lineEnter}
+        <motion.div
+          className="flex flex-col items-center gap-2 sm:gap-3"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
         >
-          {[artistName, albumName].filter(Boolean).join("  ·  ")}
-        </motion.p>
+          {lines.map((line, i) => (
+            <motion.div key={`${itemKey}-line-${i}`} variants={lineEnter}>
+              <p className="floating-line">{line}</p>
+            </motion.div>
+          ))}
+
+          {/* 歌手 · 专辑 */}
+          <motion.p
+            className="mt-6 text-sm tracking-widest text-gray-400/80 sm:text-base"
+            variants={lineEnter}
+          >
+            {[artistName, albumName].filter(Boolean).join("  ·  ")}
+          </motion.p>
+        </motion.div>
       </motion.div>
     </AnimatePresence>
   );

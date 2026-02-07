@@ -193,7 +193,11 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
       console.log("[AddLyrics] 响应:", res.status, text.slice(0, 200));
       let data;
       try { data = JSON.parse(text); } catch { throw new Error(`服务器返回异常: ${res.status} - ${text.slice(0, 100)}`); }
-      if (!res.ok) throw new Error(data.error || `保存失败 (${res.status})`);
+      if (!res.ok) {
+        const msg = data.error || `保存失败 (${res.status})`;
+        const extra = [data.hint, data.detail].filter(Boolean).join("\n");
+        throw new Error(extra ? `${msg}\n${extra}` : msg);
+      }
       onSuccess();
       onClose();
     } catch (err) {
@@ -211,7 +215,7 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
       onClick={onClose}
     >
       <div
-        className="scrapbook-card max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl p-6 shadow-xl"
+        className="scrapbook-card max-h-[90vh] w-full max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl p-6 shadow-xl sm:max-w-lg sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 标题 */}
@@ -221,7 +225,8 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
           </h2>
           <button
             onClick={onClose}
-            className="text-2xl leading-none text-[var(--ink-muted)] hover:text-[var(--ink)]"
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center text-2xl leading-none text-[var(--ink-muted)] hover:text-[var(--ink)]"
+            aria-label="关闭"
           >
             &times;
           </button>

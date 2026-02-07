@@ -44,10 +44,9 @@ export default function Home() {
   const [editingCategoryName, setEditingCategoryName] = useState("");
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showSearchOverlay, setShowSearchOverlay] = useState(false);
-  const [backfillLyricsLoading, setBackfillLyricsLoading] = useState(false);
-  const [backfillLyricsMessage, setBackfillLyricsMessage] = useState<string | null>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const searchOverlayInputRef = useRef<HTMLInputElement>(null);
+  const skipCategoryBlurSaveRef = useRef(false);
 
   useEffect(() => {
     if (!showExportMenu) return;
@@ -173,6 +172,7 @@ export default function Home() {
   };
 
   const handleCancelEditCategory = () => {
+    skipCategoryBlurSaveRef.current = true;
     setEditingCategoryId(null);
     setEditingCategoryName("");
   };
@@ -230,7 +230,11 @@ export default function Home() {
           body: JSON.stringify({ albums, categoryId: activeCategoryId }),
         });
         const batchData = await batchRes.json();
-        if (!batchRes.ok) throw new Error(batchData.error || "批量保存失败");
+        if (!batchRes.ok) {
+          const msg = batchData.error || "批量保存失败";
+          const hint = batchData.hint ? `\n${batchData.hint}` : "";
+          throw new Error(msg + hint);
+        }
         setLinkInput("");
         setShowSearchOverlay(false);
         handleUploadSuccess();
@@ -341,33 +345,18 @@ export default function Home() {
   };
 
   const handleClearExceptFirst = async () => {
-    if (!confirm("确定保留最早添加的 4 张专辑，其余全部删除？此操作不可恢复。")) return;
+    if (!confirm("确定要清空所有专辑？此操作不可恢复。")) return;
     try {
       const res = await fetch("/api/albums/clear-except-first", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keep: 4 }),
+        body: JSON.stringify({}),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "清除失败");
       setRefreshKey((k) => k + 1);
     } catch (err) {
       alert(err instanceof Error ? err.message : "一键清除失败");
-    }
-  };
-
-  const handleBackfillLyrics = async () => {
-    setBackfillLyricsMessage(null);
-    setBackfillLyricsLoading(true);
-    try {
-      const res = await fetch("/api/albums/backfill-lyrics", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "补全失败");
-      setBackfillLyricsMessage(data?.message ?? `已补全 ${data?.updated ?? 0} 条歌词`);
-    } catch (err) {
-      setBackfillLyricsMessage(err instanceof Error ? err.message : "补全歌词失败");
-    } finally {
-      setBackfillLyricsLoading(false);
     }
   };
 
@@ -404,21 +393,18 @@ export default function Home() {
 
       {/* Upload & Grid */}
       <section>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-medium text-[var(--ink-muted)]">
-            我的收藏
-          </h2>
+        <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
           <div className="relative flex items-center gap-2" ref={exportMenuRef}>
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setShowExportMenu((v) => !v)}
-                className="rounded-full border border-[var(--paper-dark)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper-dark)]"
+                className="min-h-[44px] rounded-full border border-[var(--paper-dark)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper-dark)]"
               >
                 导出海报 ▾
               </button>
               {showExportMenu && (
-                <div className="absolute right-0 top-full z-20 mt-1 min-w-[140px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                <div className="absolute right-0 bottom-full z-20 mb-1 min-w-[140px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg sm:bottom-auto sm:top-full sm:mb-0 sm:mt-1">
                   <button
                     type="button"
                     onClick={() => {
@@ -426,7 +412,7 @@ export default function Home() {
                       setExportError(null);
                       handleExportPoster();
                     }}
-                    className="block w-full px-4 py-2 text-left text-sm text-[var(--ink)] hover:bg-slate-50"
+                    className="flex min-h-[44px] w-full items-center px-4 text-left text-sm text-[var(--ink)] hover:bg-slate-50"
                   >
                     默认
                   </button>
@@ -436,7 +422,7 @@ export default function Home() {
                       setShowExportMenu(false);
                       setShowPolaroidModal(true);
                     }}
-                    className="block w-full px-4 py-2 text-left text-sm text-[var(--ink)] hover:bg-slate-50"
+                    className="flex min-h-[44px] w-full items-center px-4 text-left text-sm text-[var(--ink)] hover:bg-slate-50"
                   >
                     宝丽来风格
                   </button>
@@ -445,22 +431,12 @@ export default function Home() {
             </div>
             <button
               type="button"
-              onClick={handleBackfillLyrics}
-              disabled={backfillLyricsLoading}
-              className="rounded-full border border-[var(--paper-dark)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper-dark)] disabled:opacity-60"
-            >
-              {backfillLyricsLoading ? "补全中…" : "补全歌词"}
-            </button>
-            <button
-              type="button"
               onClick={handleClearExceptFirst}
-              className="rounded-full border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+              className="min-h-[44px] rounded-full border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
             >
-              一键清除
+              <span className="sm:hidden">清空</span>
+              <span className="hidden sm:inline">清空</span>
             </button>
-            {backfillLyricsMessage && (
-              <span className="text-sm text-[var(--ink-muted)]">{backfillLyricsMessage}</span>
-            )}
             {exportError && <span className="text-sm text-red-500">{exportError}</span>}
           </div>
         </div>
@@ -470,116 +446,102 @@ export default function Home() {
           </p>
         )}
         <div className="mb-4 space-y-2">
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <div className="flex items-center gap-2 overflow-x-auto scroll-touch pb-1">
             {categories.map((cat) => (
-              <div key={cat.id} className="group flex shrink-0 items-center gap-1">
+              <div
+                key={cat.id}
+                className={`group flex shrink-0 items-center gap-0.5 rounded-full border transition-colors ${
+                  activeCategoryId === cat.id && editingCategoryId !== cat.id
+                    ? "border-[rgba(0,0,0,0.08)] bg-[rgba(0,0,0,0.08)]"
+                    : "border-[rgba(0,0,0,0.06)] bg-[rgba(0,0,0,0.04)]"
+                } ${editingCategoryId === cat.id ? "p-1" : "py-0.5 pl-2.5 pr-0.5"}`}
+              >
                 {editingCategoryId === cat.id ? (
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="text"
-                      value={editingCategoryName}
-                      onChange={(e) => setEditingCategoryName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSaveEditCategory();
-                        if (e.key === "Escape") handleCancelEditCategory();
-                      }}
-                      className="min-w-[80px] max-w-[140px] rounded-lg border border-slate-300 px-2 py-1 text-sm text-slate-900 outline-none focus:border-[var(--accent)]"
-                      autoFocus
-                    />
-                    <button
-                      type="button"
-                      onClick={handleSaveEditCategory}
-                      className="rounded px-2 py-0.5 text-xs text-white bg-[var(--accent)] hover:bg-[var(--accent-light)]"
-                    >
-                      确定
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCancelEditCategory}
-                      className="rounded px-2 py-0.5 text-xs text-slate-500 hover:bg-slate-100"
-                    >
-                      取消
-                    </button>
-                  </div>
+                  <input
+                    type="text"
+                    value={editingCategoryName}
+                    onChange={(e) => setEditingCategoryName(e.target.value)}
+                    onBlur={() => {
+                      if (skipCategoryBlurSaveRef.current) {
+                        skipCategoryBlurSaveRef.current = false;
+                        return;
+                      }
+                      handleSaveEditCategory();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        (e.target as HTMLInputElement).blur();
+                      }
+                      if (e.key === "Escape") handleCancelEditCategory();
+                    }}
+                    className="min-w-[80px] max-w-[140px] rounded-full border-0 bg-transparent px-2.5 py-1 text-sm text-[var(--ink)] outline-none focus:ring-0"
+                    autoFocus
+                  />
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => setActiveCategoryId(cat.id)}
-                    onDoubleClick={() => cat.name !== "Default" && handleStartEditCategory(cat)}
-                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                      activeCategoryId === cat.id
-                        ? "bg-slate-100 text-slate-900 font-semibold"
-                        : "bg-transparent text-slate-500 hover:text-slate-700"
-                    } ${cat.name !== "Default" ? "cursor-pointer" : ""}`}
-                    title={cat.name !== "Default" ? "双击编辑名称" : undefined}
-                  >
-                    {cat.name}
-                  </button>
-                )}
-                {cat.name !== "Default" && editingCategoryId !== cat.id && (
                   <>
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); handleStartEditCategory(cat); }}
-                      className="rounded p-0.5 text-slate-400 opacity-0 transition-opacity hover:text-slate-600 group-hover:opacity-100"
-                      aria-label={`编辑 ${cat.name}`}
-                      title="编辑"
+                      onClick={() => {
+                        if (activeCategoryId === cat.id && cat.name !== "Default") {
+                          handleStartEditCategory(cat);
+                        } else {
+                          setActiveCategoryId(cat.id);
+                        }
+                      }}
+                      className={`rounded-full px-2.5 py-1.5 text-left text-sm font-medium transition-colors ${
+                        activeCategoryId === cat.id
+                          ? "text-[var(--ink)] font-semibold"
+                          : "text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[rgba(0,0,0,0.03)]"
+                      } ${cat.name !== "Default" ? "cursor-pointer" : ""}`}
+                      title={cat.name !== "Default" ? "再次点击编辑名称" : undefined}
                     >
-                      ✎
+                      {cat.name}
                     </button>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.id); }}
-                      className="rounded p-0.5 text-slate-400 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
-                      aria-label={`删除 ${cat.name}`}
-                    >
-                      ×
-                    </button>
+                    {cat.name !== "Default" && editingCategoryId !== cat.id && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.id); }}
+                        className="flex min-h-[32px] min-w-[32px] items-center justify-center rounded-full p-1 text-[var(--ink-muted)] transition-colors hover:bg-black/5 hover:text-red-500"
+                        aria-label={`删除 ${cat.name}`}
+                      >
+                        ×
+                      </button>
+                    )}
                   </>
                 )}
               </div>
             ))}
-            {!categoriesFallback && (
-              <button
-                type="button"
-                onClick={handleCreateCategory}
-                className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
-                aria-label="新建分类"
-              >
-                +
-              </button>
-            )}
+            {!categoriesFallback &&
+              (isAddingCategory ? (
+                <div className="ml-1 shrink-0 inline-flex rounded-full border border-[rgba(0,0,0,0.06)] bg-[rgba(0,0,0,0.04)] p-1.5">
+                  <input
+                    type="text"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    onBlur={() => {
+                      if (newCategoryName.trim()) handleSubmitNewCategory();
+                      else handleCancelNewCategory();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSubmitNewCategory();
+                      if (e.key === "Escape") handleCancelNewCategory();
+                    }}
+                    placeholder="新歌单名字是："
+                    className="min-w-[120px] max-w-[180px] rounded-full border-0 bg-transparent px-4 py-2 text-sm text-[var(--ink)] placeholder:text-[var(--ink-muted)] outline-none focus:ring-0"
+                    autoFocus
+                  />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleCreateCategory}
+                  className="ml-1 shrink-0 rounded-full border border-dashed border-[rgba(0,0,0,0.12)] bg-transparent px-3 py-1.5 text-sm font-medium text-[var(--ink-muted)] transition-colors hover:border-[rgba(0,0,0,0.2)] hover:bg-[rgba(0,0,0,0.04)] hover:text-[var(--ink)]"
+                  aria-label="新建分类"
+                >
+                  +
+                </button>
+              ))}
           </div>
-          {!categoriesFallback && isAddingCategory && (
-            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
-              <input
-                type="text"
-                value={newCategoryName}
-                onChange={(e) => setNewCategoryName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSubmitNewCategory();
-                  if (e.key === "Escape") handleCancelNewCategory();
-                }}
-                placeholder="输入分类名称"
-                className="flex-1 max-w-xs rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
-                autoFocus
-              />
-              <button
-                type="button"
-                onClick={handleSubmitNewCategory}
-                className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--accent-light)]"
-              >
-                添加
-              </button>
-              <button
-                type="button"
-                onClick={handleCancelNewCategory}
-                className="rounded-lg px-4 py-2 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-              >
-                取消
-              </button>
-            </div>
-          )}
         </div>
         <div id="album-wall-export">
           <AlbumGrid
@@ -596,8 +558,7 @@ export default function Home() {
         className="search-trigger-capsule"
         aria-label="添加网易云链接"
       >
-        <span className="opacity-80">🔗</span>
-        <span>粘贴链接，添加歌曲 / 专辑 / 歌单</span>
+        这里
       </button>
 
       {/* 全屏搜索 Overlay：高斯模糊 */}
@@ -608,17 +569,16 @@ export default function Home() {
           role="presentation"
         >
           <div
-            className="w-full max-w-md rounded-2xl bg-white/80 p-5 shadow-xl backdrop-blur-md border border-white/90"
+            className="search-overlay-panel"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-label="添加网易云链接"
           >
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-sm font-medium text-[var(--ink-muted)]">添加收藏</span>
+            <div className="mb-4 flex items-center justify-end">
               <button
                 type="button"
                 onClick={() => setShowSearchOverlay(false)}
-                className="rounded-full p-1.5 text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)]"
+                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full p-1.5 text-[var(--ink-muted)] hover:bg-[var(--paper-dark)] hover:text-[var(--ink)]"
                 aria-label="关闭"
               >
                 ×
@@ -637,19 +597,19 @@ export default function Home() {
                   else setLinkInput(raw);
                   setLinkError(null);
                 }}
-                placeholder="粘贴网易云链接或分享文案"
-                className="w-full rounded-xl border border-black/10 bg-white/90 px-4 py-3 text-sm text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                placeholder="歌/专辑/歌单"
+                className="w-full rounded-xl border border-[var(--paper-dark)] bg-white px-4 py-3 text-sm text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
               />
               <motion.button
                 type="button"
                 onClick={handleAddLink}
                 disabled={linkLoading}
-                className="w-full rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-medium text-white disabled:opacity-60"
-                whileHover={linkLoading ? undefined : { scale: 1.02 }}
-                whileTap={linkLoading ? undefined : { scale: 0.98 }}
+                className="w-full rounded-xl border border-[var(--paper-dark)] bg-[var(--paper-dark)] px-4 py-3 text-sm font-medium text-[var(--ink)] disabled:opacity-60 hover:bg-black/5"
+                whileHover={linkLoading ? undefined : { scale: 1.01 }}
+                whileTap={linkLoading ? undefined : { scale: 0.99 }}
                 transition={{ type: "spring", stiffness: 400, damping: 20 }}
               >
-                {linkLoading ? "添加中..." : "抓取"}
+                {linkLoading ? "添加中..." : "GO!"}
               </motion.button>
             </div>
             {linkError && (
@@ -673,11 +633,11 @@ export default function Home() {
 
       {showPolaroidModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="relative flex h-[90vh] max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-[var(--paper-dark)] shadow-xl">
+          <div className="relative flex h-[90vh] max-h-[90vh] w-full max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl bg-[var(--paper-dark)] shadow-xl sm:max-w-4xl sm:rounded-2xl">
             <button
               type="button"
               onClick={() => setShowPolaroidModal(false)}
-              className="absolute right-3 top-3 z-10 rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70"
+              className="absolute right-3 top-3 z-10 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70"
               aria-label="关闭"
             >
               ×
@@ -785,11 +745,11 @@ export default function Home() {
 
       {showExportPreview && exportPreviewUrl && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" onClick={() => { setShowExportPreview(false); setExportPreviewUrl(null); setExportPreviewFilename(""); }}>
-          <div className="relative max-h-[90vh] max-w-lg rounded-2xl bg-white p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="relative max-h-[90vh] w-full max-w-[calc(100vw-2rem)] rounded-xl bg-white p-4 shadow-xl sm:max-w-lg sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               onClick={() => { setShowExportPreview(false); setExportPreviewUrl(null); setExportPreviewFilename(""); }}
-              className="absolute right-2 top-2 rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70"
+              className="absolute right-2 top-2 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70"
               aria-label="关闭"
             >
               ×
@@ -800,7 +760,7 @@ export default function Home() {
               <button
                 type="button"
                 onClick={handleDownloadFromPreview}
-                className="rounded-full bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white hover:bg-[var(--accent-light)]"
+                className="min-h-[44px] rounded-full bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white hover:bg-[var(--accent-light)]"
               >
                 导出
               </button>

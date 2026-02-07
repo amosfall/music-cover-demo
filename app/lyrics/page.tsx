@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { motion } from "framer-motion";
 import FloatingLyrics from "@/components/FloatingLyrics";
 import AlbumStrip from "@/components/AlbumStrip";
 import AddLyricsModal from "@/components/AddLyricsModal";
@@ -79,18 +80,24 @@ export default function LyricsPage() {
           <TabNav />
           <button
             onClick={() => setShowAdd(true)}
-            className="rounded-full bg-gray-800 px-5 py-2 text-sm font-medium text-white/90 transition-colors hover:bg-gray-700"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full bg-black p-0 transition-colors hover:bg-black/80"
+            aria-label="添加"
           >
-            + 添加
+            <svg className="h-5 w-5 shrink-0 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
           </button>
         </header>
 
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-          <p className="text-5xl opacity-20">&#x270D;</p>
-          <p className="text-lg font-light text-gray-400">还没有歌词</p>
-          <p className="text-sm text-gray-400/60">
-            添加一句歌词，开始你的音乐画廊
-          </p>
+        <div className="flex flex-1 flex-col items-center justify-center overflow-hidden text-center">
+          <motion.p
+            className="font-song font-normal text-black text-2xl tracking-[0.4em]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 2, ease: "easeOut" }}
+          >
+            「與　你　握　手」
+          </motion.p>
         </div>
 
         {showAdd && (
@@ -114,13 +121,13 @@ export default function LyricsPage() {
             <>
               <button
                 onClick={() => setEditingItem(activeItem)}
-                className="rounded-full px-4 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                className="min-h-[44px] rounded-full px-4 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
               >
                 编辑
               </button>
               <button
                 onClick={handleDelete}
-                className="rounded-full px-4 py-1.5 text-xs font-medium text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                className="min-h-[44px] rounded-full px-4 py-1.5 text-xs font-medium text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
               >
                 删除
               </button>
@@ -128,9 +135,12 @@ export default function LyricsPage() {
           )}
           <button
             onClick={() => setShowAdd(true)}
-            className="rounded-full bg-gray-800 px-5 py-2 text-sm font-medium text-white/90 transition-colors hover:bg-gray-700"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full bg-black p-0 transition-colors hover:bg-black/80"
+            aria-label="添加"
           >
-            + 添加
+            <svg className="h-5 w-5 shrink-0 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
           </button>
         </div>
       </header>

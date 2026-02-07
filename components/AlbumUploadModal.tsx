@@ -94,7 +94,7 @@ export default function AlbumUploadModal({ onClose, onSuccess }: Props) {
       onClick={onClose}
     >
       <div
-        className="scrapbook-card max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl p-6 shadow-xl"
+        className="scrapbook-card max-h-[90vh] w-full max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl p-6 shadow-xl sm:max-w-lg sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-6 flex items-center justify-between">
@@ -103,7 +103,8 @@ export default function AlbumUploadModal({ onClose, onSuccess }: Props) {
           </h2>
           <button
             onClick={onClose}
-            className="text-2xl leading-none text-[var(--ink-muted)] hover:text-[var(--ink)]"
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center text-2xl leading-none text-[var(--ink-muted)] hover:text-[var(--ink)]"
+            aria-label="关闭"
           >
             ×
           </button>

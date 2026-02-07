@@ -7,6 +7,7 @@ import { fetchNeteaseLyrics } from "@/lib/netease-lyrics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 type ParseResult = { type: "song" | "album" | "playlist"; id: string } | null;
 

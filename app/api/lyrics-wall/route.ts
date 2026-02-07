@@ -10,6 +10,7 @@ export type WallItem = {
   songName: string | null;
   albumName: string;
   artistName: string | null;
+  releaseYear: string | null;
   imageUrl: string;
   source: "album" | "card";
   showOnLyricsWall: boolean;
@@ -42,6 +43,7 @@ export async function GET() {
           songName: a.songName ?? null,
           albumName: a.albumName,
           artistName: a.artistName,
+          releaseYear: a.releaseYear ?? null,
           imageUrl: a.imageUrl,
           source: "album",
           showOnLyricsWall: a.showOnLyricsWall,
@@ -56,6 +58,7 @@ export async function GET() {
         songName: null,
         albumName: c.albumName,
         artistName: c.artistName,
+        releaseYear: null,
         imageUrl: c.imageUrl,
         source: "card",
         showOnLyricsWall: c.showOnLyricsWall,

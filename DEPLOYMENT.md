@@ -145,3 +145,48 @@ Railway 可同时运行 Next.js 和 PostgreSQL，无需拆分服务。
 | **歌词墙一直「还没有歌词数据」** | 歌词墙数据来自：① 封面页通过链接抓取的**单曲**（带歌词）；② 歌词页手动添加的卡片。两者都没有则为空。 | 在封面页用底部胶囊粘贴网易云**单曲**链接抓取，或在「歌词」页点击「添加歌词」手动添加一条。 |
 | **粘贴链接后添加失败 / 超时** | 未配置 `NETEASE_API_URL` 或自建网易云 API 未启动、被墙或限流。 | 在 Vercel 环境变量中配置 `NETEASE_API_URL` 指向自建 API（如 Railway 部署的 NeteaseCloudMusicApi）。可访问 `/api/check-netease` 做连通性检查。 |
 | **图片不显示 / 上传失败** | 未配置 `BLOB_READ_WRITE_TOKEN` 或 Blob 未正确绑定项目。 | 在 Vercel → Storage → Blob 创建 Store 并绑定到项目，确保环境变量中有 `BLOB_READ_WRITE_TOKEN`。 |
+
+---
+
+## Vercel 部署后「用不了」排查（按顺序做）
+
+部署到 Vercel 后若出现**打不开、批量保存失败、抓取失败**等，按下面顺序检查。
+
+### 1. 必须配置的三大环境变量
+
+在 **Vercel 项目 → Settings → Environment Variables** 中，以下三个缺一不可：
+
+| 变量 | 说明 | 如何获取 |
+|------|------|----------|
+| **DATABASE_URL** | 数据库连接串 | Neon 控制台 → Connection string → 选 **Pooled**（主机名带 `-pooler`），复制整串。**不要用直连串**，否则易出现「Connection terminated」。 |
+| **NETEASE_API_URL** | 网易云 API 地址 | Railway 部署的 NeteaseCloudMusicApi 公网 URL，如 `https://xxx-production.up.railway.app`，**不要末尾斜杠**。 |
+| **BLOB_READ_WRITE_TOKEN** | 图片存储 | Vercel 项目 → Storage → 创建 **Blob** Store 并连接项目后自动注入。 |
+
+修改环境变量后必须 **Redeploy** 一次（Deployments → 最新部署右侧 ⋮ → Redeploy），否则不生效。
+
+### 2. 用诊断接口确认
+
+在**生产域名**下打开（把 `music-cover-demo.vercel.app` 换成你的）：
+
+- **数据库**：`https://music-cover-demo.vercel.app/api/check-db`  
+  - 返回 `ok: true` 表示 DATABASE_URL 正确、能连上库。
+  - 若 `ok: false` 且 hint 提到「Pooled」→ 去 Neon 控制台改用 **Pooled** 连接串。
+- **网易云 API**：`https://music-cover-demo.vercel.app/api/check-netease`  
+  - `reachable: true` 表示 Vercel 能访问你的 Railway 网易云 API。
+  - 若 `configured: false` → 未配置 NETEASE_API_URL；若 `reachable: false` → 检查 Railway 服务是否运行、URL 是否写错。
+
+### 3. 常见现象与对应原因
+
+| 现象 | 最可能原因 | 处理 |
+|------|------------|------|
+| **批量保存失败**（歌单抓取后点「抓取」报错） | DATABASE_URL 未配置或用了非 Pooled 连接串 | 配置/改为 Neon **Pooled** 连接串，Redeploy，再访问 `/api/check-db` 确认。 |
+| **获取歌单失败 / 无法连接网易云 API** | NETEASE_API_URL 未配置或 Railway 不可达 | 配置 NETEASE_API_URL 为 Railway 公网 URL，Redeploy，再访问 `/api/check-netease` 确认。 |
+| **上传封面或解析单曲/专辑时报错** | 缺少 BLOB_READ_WRITE_TOKEN | 在 Vercel → Storage 创建 Blob 并连接项目，Redeploy。 |
+| **歌单曲目多时超时** | Vercel Hobby 函数执行上限 10 秒 | 先试**少量曲目**的歌单；或升级到 Pro 后本项目的 playlist/batch 已设 `maxDuration=60` 可延长至 60 秒。 |
+
+### 4. 代码里已为 Vercel 做的适配
+
+- **数据库**：使用 `pg` + `@prisma/adapter-pg`，连接池与 Neon Pooled 兼容；`lib/db.ts` 对连接类错误有重试。
+- **存储**：`lib/storage.ts` 在检测到 Vercel 且无 Blob token 时会明确报错，提示去配置 Blob。
+- **诊断**：`/api/check-db`、`/api/check-netease` 专门用于在线上快速确认 DATABASE_URL 与 NETEASE_API_URL 是否可用。
+- **超时**：`/api/playlist`、`/api/albums/batch`、`/api/parse-netease` 已设置 `maxDuration = 60`，在 Vercel Pro 下可跑更久，减少大歌单超时。

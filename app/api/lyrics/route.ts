@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { withDbRetry } from "@/lib/db";
+import { withDbRetry, isDbConnectionError } from "@/lib/db";
 
 export async function GET() {
   try {
@@ -44,9 +44,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(item);
   } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
     console.error("Failed to create lyrics card:", error);
+    const isDb = isDbConnectionError(error) || /relation.*does not exist|table.*lyrics/i.test(msg);
+    const hint = isDb
+      ? "请确认生产环境已执行 npx prisma db push，且 DATABASE_URL 为 Neon Pooled 连接串。"
+      : undefined;
     return NextResponse.json(
-      { error: "保存失败" },
+      { error: "保存失败", hint, detail: process.env.NODE_ENV === "development" ? msg : undefined },
       { status: 500 }
     );
   }

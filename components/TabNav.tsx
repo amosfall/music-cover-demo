@@ -4,9 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const tabs = [
-  { href: "/", label: "封面" },
-  { href: "/lyrics", label: "歌词" },
-  { href: "/lyrics-wall", label: "歌词墙" },
+  { href: "/", label: "歌" },
+  { href: "/lyrics", label: "词" },
+  { href: "/lyrics-wall", label: "诗的歌" },
 ];
 
 export default function TabNav() {

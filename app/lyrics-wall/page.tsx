@@ -15,6 +15,7 @@ type WallItem = {
   songName: string | null;
   albumName: string;
   artistName: string | null;
+  releaseYear: string | null;
   imageUrl: string;
   source: "album" | "card";
   showOnLyricsWall?: boolean;
@@ -23,12 +24,42 @@ type WallItem = {
 /** 每首歌最多取的歌词行数，避免几百行歌词淹没屏幕 */
 const MAX_LINES_PER_SONG = 6;
 
+/** 专辑唯一键，同一专辑合并为一条 */
+function getAlbumKey(item: { albumName: string; imageUrl: string }) {
+  return `${item.albumName}||${item.imageUrl}`;
+}
+
+const STRIP_ORDER_STORAGE_KEY = "lyrics-wall-strip-order";
+
+function loadStripOrder(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const s = window.localStorage.getItem(STRIP_ORDER_STORAGE_KEY);
+    if (!s) return [];
+    const parsed = JSON.parse(s);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveStripOrder(ids: string[]) {
+  try {
+    window.localStorage.setItem(STRIP_ORDER_STORAGE_KEY, JSON.stringify(ids));
+  } catch {
+    // ignore
+  }
+}
+
 export default function LyricsWallPage() {
   const [items, setItems] = useState<WallItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  /** 居中界面内「显示哪首歌」：null = 全部，否则为 sourceId 只显示该首 */
+  const [centerSongId, setCenterSongId] = useState<string | null>(null);
   const [showManageModal, setShowManageModal] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [stripOrder, setStripOrder] = useState<string[]>(() => loadStripOrder());
   const fetchVersionRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const userHasToggledRef = useRef(false);
@@ -60,16 +91,20 @@ export default function LyricsWallPage() {
     };
   }, [fetchData]);
 
-  // 过滤元信息行：中文（作词/作曲等） + 英文（Produced by 等） + 人名/角色+冒号（合唱 enno:、男：、女： 等）
-  const metaRegexCn = /^(作词|作曲|编曲|制作人|混音|母带|录音|吉他|贝斯|鼓|键盘|和声|监制|出品|词|曲|编)\s*[：:]/i;
+  // 过滤元信息行：作词/作曲/编曲/制作人员等，不展示在歌词墙
+  const metaRegexCn =
+    /^(作词|作曲|编曲|制作人|混音|母带|录音|吉他|电吉他|木吉他|贝斯|鼓|键盘|钢琴|和声|监制|出品|词|曲|编|混音及后制|后制工程|钢琴录制|录音室)\s*[：:]/i;
   const metaRegexEn =
-    /^(Produced by|Co-produced by|Written by|Composed by|Coordinated by|Mixed by|Mastered by|Recorded by|Engineered by|Acoustic guitar|Electric guitar|Bass|Guitar|Drums|Piano|Keyboards|Strings|Vocals|Backing vocals|Synth|Programming|Cover)\s*[：:]/i;
+    /^(Produced by|Co-produced by|Written by|Composed by|Arrangement|Coordinated by|Mixed by|Mastered by|Recorded by|Engineered by|Acoustic guitar|Electric guitar|Bass|Guitar|Drums|Piano|Keyboards|Strings|Vocals|Backing vocals|Synth|Programming|Cover)\s*[：:]/i;
+  /** 整行以编曲/钢琴/混音等制作信息开头 */
+  const creditLineRegex = /^(编曲|混音及后制|后制工程|录音\/混音|钢琴|钢琴录制|录音室)/;
   /** 人名/角色+冒号：enno:、男：、女：、合唱：、独唱： 等 */
   const nameLabelRegex = /^[a-zA-Z][a-zA-Z0-9_\s]{0,24}\s*[：:]/;
   const roleLabelRegex = /^(男|女|合唱|独唱|男声|女声)\s*[：:]/;
   const isMetaLine = (line: string) =>
     metaRegexCn.test(line) ||
     metaRegexEn.test(line) ||
+    creditLineRegex.test(line) ||
     nameLabelRegex.test(line) ||
     roleLabelRegex.test(line);
   // 去掉 LRC 时间戳 [00:00.00]，只保留有效歌词
@@ -82,7 +117,7 @@ export default function LyricsWallPage() {
     [items]
   );
 
-  // 将所有歌词拆分为 fragments（仅用 displayItems）
+  // 将所有歌词拆分为 fragments（仅用 displayItems），带 albumKey / songName 便于按专辑合并与按歌排版
   const fragments: LyricFragment[] = useMemo(() => {
     const result: LyricFragment[] = [];
     for (const item of displayItems) {
@@ -91,12 +126,15 @@ export default function LyricsWallPage() {
         .map((l) => stripLrcTime(l))
         .filter((l) => l && !isMetaLine(l));
       const selected = lines.slice(0, MAX_LINES_PER_SONG);
+      const albumKey = getAlbumKey(item);
       for (const line of selected) {
         result.push({
           text: line,
           sourceId: item.id,
+          albumKey,
           albumName: item.albumName,
           artistName: item.artistName,
+          songName: item.songName ?? null,
         });
       }
     }
@@ -104,16 +142,16 @@ export default function LyricsWallPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayItems]);
 
-  // 去重的专辑列表（用于底部 dock，仅 displayItems）
-  const albumList: StripItem[] = useMemo(() => {
+  // 按专辑去重的列表（用于底部 dock），id 为 albumKey，同一专辑只一条
+  const rawAlbumList: StripItem[] = useMemo(() => {
     const seen = new Set<string>();
     const list: StripItem[] = [];
     for (const item of displayItems) {
-      const key = `${item.albumName}||${item.imageUrl}`;
+      const key = getAlbumKey(item);
       if (!seen.has(key)) {
         seen.add(key);
         list.push({
-          id: item.id,
+          id: key,
           imageUrl: item.imageUrl,
           albumName: item.albumName,
           artistName: item.artistName,
@@ -123,25 +161,103 @@ export default function LyricsWallPage() {
     return list;
   }, [displayItems]);
 
-  const handleSelectAlbum = (album: StripItem) => {
-    // toggle: 再次点击相同的取消高亮
-    setHighlightId((prev) => (prev === album.id ? null : album.id));
-  };
+  // 按 stripOrder 排序；无 order 时用原始顺序，并同步 stripOrder
+  const albumList: StripItem[] = useMemo(() => {
+    if (stripOrder.length === 0) return rawAlbumList;
+    const orderMap = new Map(stripOrder.map((id, i) => [id, i]));
+    return [...rawAlbumList].sort((a, b) => {
+      const ai = orderMap.get(a.id) ?? 1e9;
+      const bi = orderMap.get(b.id) ?? 1e9;
+      return ai - bi;
+    });
+  }, [rawAlbumList, stripOrder]);
+
+  // 同步 stripOrder：兼容旧版存的 item id，映射为 albumKey 并去重
+  useEffect(() => {
+    if (rawAlbumList.length === 0) return;
+    const itemIdToAlbumKey = new Map(displayItems.map((i) => [i.id, getAlbumKey(i)]));
+    const albumKeySet = new Set(rawAlbumList.map((a) => a.id));
+    setStripOrder((prev) => {
+      let next = prev.map((id) => itemIdToAlbumKey.get(id) ?? id);
+      next = next.filter((id) => albumKeySet.has(id));
+      next = next.filter((id, i) => next.indexOf(id) === i);
+      for (const a of rawAlbumList) {
+        if (!next.includes(a.id)) next.push(a.id);
+      }
+      return next.length ? next : rawAlbumList.map((a) => a.id);
+    });
+  }, [rawAlbumList, displayItems]);
+
+  // 居中界面时：左右方向键切换上一张/下一张专辑（循环）
+  useEffect(() => {
+    if (!highlightId || albumList.length === 0) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      const idx = albumList.findIndex((a) => a.id === highlightId);
+      if (idx === -1) return;
+      e.preventDefault();
+      if (e.key === "ArrowRight") {
+        const nextIdx = (idx + 1) % albumList.length;
+        setHighlightId(albumList[nextIdx].id);
+      } else {
+        const prevIdx = (idx - 1 + albumList.length) % albumList.length;
+        setHighlightId(albumList[prevIdx].id);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [highlightId, albumList]);
 
   const handleDeleteAlbum = async (album: StripItem) => {
-    if (!confirm(`确定删除「${album.albumName}」的歌词？`)) return;
-    // 找到对应的 WallItem 来确定 source 和 id
-    const item = items.find((i) => i.id === album.id);
-    if (!item) return;
-    const endpoint =
-      item.source === "album"
-        ? `/api/albums/${item.id}`
-        : `/api/lyrics/${item.id}`;
-    const res = await fetch(endpoint, { method: "DELETE" });
-    if (res.ok) {
-      setItems((prev) => prev.filter((i) => i.id !== item.id));
-      if (highlightId === item.id) setHighlightId(null);
+    if (!confirm(`确定删除「${album.albumName}」下全部歌曲的歌词？`)) return;
+    const albumKey = album.id;
+    const toDelete = items.filter((i) => getAlbumKey(i) === albumKey);
+    const deletedIds: string[] = [];
+    for (const item of toDelete) {
+      const endpoint =
+        item.source === "album"
+          ? `/api/albums/${item.id}`
+          : `/api/lyrics/${item.id}`;
+      const res = await fetch(endpoint, { method: "DELETE" });
+      if (res.ok) deletedIds.push(item.id);
     }
+    if (deletedIds.length > 0) {
+      setItems((prev) => prev.filter((i) => !deletedIds.includes(i.id)));
+    }
+    if (highlightId === albumKey) setHighlightId(null);
+  };
+
+  // 当前专辑下的歌曲 id 列表（displayItems 顺序），用于点击封面换歌
+  const albumSongIds = useMemo(() => {
+    if (!highlightId) return [];
+    return displayItems.filter((i) => getAlbumKey(i) === highlightId).map((i) => i.id);
+  }, [highlightId, displayItems]);
+
+  useEffect(() => {
+    if (!highlightId) {
+      setCenterSongId(null);
+      return;
+    }
+    if (albumSongIds.length > 1) {
+      setCenterSongId(albumSongIds[0]);
+    } else {
+      setCenterSongId(null);
+    }
+  }, [highlightId, albumSongIds]);
+
+  const handleSelectAlbum = (album: StripItem) => {
+    if (album.id === highlightId) {
+      if (albumSongIds.length <= 1) {
+        setHighlightId(null);
+        return;
+      }
+      const idx = centerSongId == null ? 0 : albumSongIds.indexOf(centerSongId);
+      const nextIdx = (idx + 1) % albumSongIds.length;
+      setCenterSongId(albumSongIds[nextIdx]);
+      return;
+    }
+    setHighlightId(album.id);
+    setCenterSongId(null);
   };
 
   const handleClickBackground = () => {
@@ -206,7 +322,7 @@ export default function LyricsWallPage() {
           </p>
           <p className="text-sm text-gray-400/60 max-w-sm">
             {items.length > 0
-              ? "点击「管理展示」勾选要出现在歌词墙的歌曲"
+              ? "点击「管理展示」勾选要出现在诗的歌的歌曲"
               : "封面页添加的带歌词的歌曲、以及歌词页手动添加的卡片，都会在这里展示；链接抓取的歌会自动选取有效歌词行"}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
@@ -252,24 +368,40 @@ export default function LyricsWallPage() {
         <button
           type="button"
           onClick={() => setShowManageModal(true)}
-          className="rounded-full border border-[var(--paper-dark)] bg-white px-4 py-2 text-sm font-medium text-[var(--ink)] hover:bg-[var(--paper-dark)]"
+          className="min-h-[44px] rounded-full border border-[var(--paper-dark)] bg-white px-4 py-2 text-sm font-medium text-[var(--ink)] hover:bg-[var(--paper-dark)]"
         >
           管理展示
         </button>
       </header>
 
-      {/* 散乱漂浮歌词 */}
-      <ScatteredLyrics fragments={fragments} highlightId={highlightId} />
+      {/* 散乱漂浮歌词：点击某行可选中对应专辑、唤起居中展示 */}
+      <ScatteredLyrics
+        fragments={fragments}
+        highlightId={highlightId}
+        centerSongId={centerSongId}
+        onCenterSongChange={setCenterSongId}
+        onFragmentClick={(albumKey) => setHighlightId((prev) => (prev === albumKey ? null : albumKey))}
+        onRequestClose={() => setHighlightId(null)}
+      />
 
-      {/* 底部专辑 Dock */}
-      <div onClick={(e) => e.stopPropagation()}>
-        <AlbumStrip
-          items={albumList}
-          activeId={highlightId}
-          onSelect={handleSelectAlbum}
-          onDelete={handleDeleteAlbum}
-        />
-      </div>
+      {/* 底部专辑 Dock：Portal 到 body，避免被父级 overflow/transform 裁切或遮挡 */}
+      {mounted &&
+        createPortal(
+          <div onClick={(e) => e.stopPropagation()}>
+            <AlbumStrip
+              items={albumList}
+              activeId={highlightId}
+              onSelect={handleSelectAlbum}
+              onDelete={handleDeleteAlbum}
+              onReorder={(newItems) => {
+                const ids = newItems.map((i) => i.id);
+                setStripOrder(ids);
+                saveStripOrder(ids);
+              }}
+            />
+          </div>,
+          document.body
+        )}
 
       {/* 管理展示弹层：用 Portal 挂到 body，避免被歌词墙的 DOM/事件影响 */}
       {mounted &&
@@ -280,7 +412,7 @@ export default function LyricsWallPage() {
             onClick={(e) => e.target === e.currentTarget && setShowManageModal(false)}
           >
             <div
-              className="flex max-h-[85vh] w-full max-w-md flex-col rounded-2xl bg-white shadow-xl"
+              className="flex max-h-[85vh] w-full max-w-[calc(100vw-2rem)] flex-col rounded-xl bg-white shadow-xl sm:max-w-md sm:rounded-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-[var(--paper-dark)] p-4">
@@ -288,7 +420,7 @@ export default function LyricsWallPage() {
                 <button
                   type="button"
                   onClick={() => setShowManageModal(false)}
-                  className="rounded-full p-1.5 text-[var(--ink-muted)] hover:bg-[var(--paper-dark)] hover:text-[var(--ink)]"
+                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full p-1.5 text-[var(--ink-muted)] hover:bg-[var(--paper-dark)] hover:text-[var(--ink)]"
                   aria-label="关闭"
                 >
                   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -297,7 +429,7 @@ export default function LyricsWallPage() {
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto p-4">
-                <p className="mb-3 text-sm text-[var(--ink-muted)]">点击整行勾选/取消，勾选的歌曲会出现在歌词墙</p>
+                <p className="mb-3 text-sm text-[var(--ink-muted)]">点击整行勾选/取消，勾选的歌曲会出现在诗的歌</p>
                 <ul className="space-y-2">
                   {items.map((item) => {
                     const isOn = item.showOnLyricsWall !== false;
@@ -339,9 +471,16 @@ export default function LyricsWallPage() {
                           />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-[var(--ink)]">{item.albumName}</p>
-                          {item.artistName && (
-                            <p className="truncate text-xs text-[var(--ink-muted)]">{item.artistName}</p>
+                          <p className="truncate text-sm font-medium text-[var(--ink)]">
+                            {item.albumName}
+                            {item.songName?.trim() ? ` - ${item.songName.trim()}` : ""}
+                          </p>
+                          {(item.artistName || item.releaseYear?.trim()) && (
+                            <p className="truncate text-xs text-[var(--ink-muted)]">
+                              {item.artistName
+                                ? `${item.artistName}${item.releaseYear?.trim() ? ` / ${item.releaseYear.trim()}` : ""}`
+                                : item.releaseYear?.trim() ?? ""}
+                            </p>
                           )}
                         </div>
                       </li>

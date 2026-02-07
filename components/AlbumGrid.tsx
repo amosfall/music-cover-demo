@@ -112,15 +112,7 @@ export default function AlbumGrid({ categoryId }: AlbumGridProps) {
     return true;
   });
   if (listDeduped.length === 0) {
-    return (
-      <div className="flex min-h-[40vh] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[var(--accent-light)]/50 bg-white/30 p-12 text-center">
-        <span className="mb-4 text-6xl opacity-50">🎵</span>
-        <p className="text-lg font-medium text-[var(--ink)]">还没有专辑</p>
-        <p className="mt-1 text-sm text-[var(--ink-muted)]">
-          上传你的第一张专辑封面开始收藏
-        </p>
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -168,7 +160,7 @@ export default function AlbumGrid({ categoryId }: AlbumGridProps) {
           onClick={() => setSelectedAlbum(null)}
         >
           <div
-            className="relative max-h-[90vh] w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-xl"
+            className="relative max-h-[90vh] w-full max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl bg-white shadow-xl sm:max-w-sm sm:rounded-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="relative aspect-square w-full overflow-hidden rounded-t-2xl bg-[var(--paper-dark)]">
@@ -178,24 +170,23 @@ export default function AlbumGrid({ categoryId }: AlbumGridProps) {
               <p className="text-lg font-medium text-[var(--ink)]">
                 {selectedAlbum.albumName}
               </p>
-              {selectedAlbum.artistName && (
+              {(selectedAlbum.artistName || selectedAlbum.releaseYear?.trim()) && (
                 <p className="mt-0.5 text-sm text-[var(--ink-muted)]">
-                  {selectedAlbum.artistName}
+                  {[selectedAlbum.artistName, selectedAlbum.releaseYear?.trim()]
+                    .filter(Boolean)
+                    .join(" / ")}
                 </p>
               )}
-              <div className="mt-3 border-t border-[var(--paper-dark)] pt-3">
-                <p className="text-xs text-[var(--ink-muted)]">导入时代表曲目</p>
-                <p className="mt-0.5 text-sm text-[var(--ink)]">
-                  {selectedAlbum.songName?.trim()
-                    ? selectedAlbum.songName
-                    : "未记录（手动上传或早期导入）"}
+              {selectedAlbum.songName?.trim() && (
+                <p className="mt-2 text-sm text-[var(--ink)]">
+                  {selectedAlbum.songName}
                 </p>
-              </div>
+              )}
             </div>
             <button
               type="button"
               onClick={() => setSelectedAlbum(null)}
-              className="absolute top-2 right-2 rounded-full bg-black/50 p-1.5 text-white backdrop-blur-sm hover:bg-black/70"
+              className="absolute top-2 right-2 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-black/50 p-1.5 text-white backdrop-blur-sm hover:bg-black/70"
               aria-label="关闭"
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

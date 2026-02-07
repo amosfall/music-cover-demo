@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { withDbRetry } from "@/lib/db";
 import { fetchNeteaseLyrics } from "@/lib/netease-lyrics";
 
+export const maxDuration = 60;
+
 type AlbumInput = {
   imageUrl: string;
   albumName: string;
@@ -59,9 +61,16 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ created: created.length, ids: created.map((c) => c.id) });
   } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
     console.error("Batch create albums error:", error);
+    // 便于在 Vercel 日志或响应中排查：数据库/连接类错误给出明确提示
+    const isDb =
+      /DATABASE_URL|connection|P1001|P1017|ECONNREFUSED|ETIMEDOUT|Connection terminated/i.test(msg);
+    const hint = isDb
+      ? "请检查 Vercel 环境变量 DATABASE_URL 是否配置且为 Neon 的 Pooled 连接串（主机名含 -pooler）。"
+      : undefined;
     return NextResponse.json(
-      { error: "批量保存失败" },
+      { error: "批量保存失败", hint },
       { status: 500 }
     );
   }

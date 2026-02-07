@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Vercel Pro 可延长至 60s；Hobby 仍为 10s，歌单过大可能超时
+export const maxDuration = 60;
 
 export type PlaylistTrackItem = {
   name: string;
