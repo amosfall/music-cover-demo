@@ -13,6 +13,10 @@ function createPool() {
   if (!connectionString) {
     throw new Error("DATABASE_URL environment variable is not set");
   }
+  // Neon 需使用 Pooled 连接串（host 含 -pooler 或 ?pgbouncer=true），否则易出现连接意外终止
+  if (connectionString.includes("neon.tech") && !connectionString.includes("pooler") && !connectionString.includes("pgbouncer")) {
+    console.warn("[prisma] 检测到 Neon 直连，建议使用 Pooled 连接串（控制台 Copy connection string -> Pooled）");
+  }
 
   const pool = new Pool({
     connectionString,

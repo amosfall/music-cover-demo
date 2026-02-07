@@ -19,11 +19,14 @@ export async function GET() {
   const host = hostMatch ? hostMatch[1] : "(未配置)";
 
   if (!apiBase) {
-    return NextResponse.json({
-      configured: false,
-      host: null,
-      hint: "在 Vercel 添加 NETEASE_API_URL 并 Redeploy，或本地 .env.local 添加 NETEASE_API_URL",
-    });
+    return new NextResponse(
+      JSON.stringify({
+        configured: false,
+        host: null,
+        hint: "在 Vercel 添加 NETEASE_API_URL 并 Redeploy，或本地 .env.local 添加 NETEASE_API_URL",
+      }),
+      { headers: { "Content-Type": "application/json; charset=utf-8" } }
+    );
   }
 
   const controller = new AbortController();
@@ -36,7 +39,7 @@ export async function GET() {
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
-    return NextResponse.json({
+    const body = {
       configured: true,
       host,
       reachable: true,
@@ -45,6 +48,9 @@ export async function GET() {
         res.status >= 400
           ? "服务返回异常状态，但网络可达。若抓取仍失败，请检查网易云 API 具体接口是否正常。"
           : "网络可达，可尝试使用抓取功能。",
+    };
+    return new NextResponse(JSON.stringify(body), {
+      headers: { "Content-Type": "application/json; charset=utf-8" },
     });
   } catch (err) {
     clearTimeout(timeoutId);
@@ -65,12 +71,9 @@ export async function GET() {
       hint = `异常: ${msg}`;
     }
 
-    return NextResponse.json({
-      configured: true,
-      host,
-      reachable: false,
-      error: msg,
-      hint,
-    });
+    return new NextResponse(
+      JSON.stringify({ configured: true, host, reachable: false, error: msg, hint }),
+      { headers: { "Content-Type": "application/json; charset=utf-8" } }
+    );
   }
 }

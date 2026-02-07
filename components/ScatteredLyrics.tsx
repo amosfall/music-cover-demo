@@ -38,20 +38,39 @@ type FragmentStyle = {
   rotate: number;
 };
 
+const COLS = 2;
+
 function generateLayout(count: number): FragmentStyle[] {
   const rand = seededRandom(42);
-  const styles: FragmentStyle[] = [];
+  const rows = Math.max(12, Math.ceil(count / COLS));
+  const slots: { col: number; row: number }[] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < COLS; c++) slots.push({ col: c, row: r });
+  }
+  for (let i = slots.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [slots[i], slots[j]] = [slots[j], slots[i]];
+  }
 
+  const cellW = 100 / COLS;
+  const cellH = 68 / rows;
+  const styles: FragmentStyle[] = [];
   for (let i = 0; i < count; i++) {
+    const slot = slots[i];
+    if (!slot) continue;
+    const baseLeft = (slot.col + 0.5) * cellW;
+    const baseTop = 8 + (slot.row + 0.5) * cellH;
+    const jitterX = (rand() - 0.5) * cellW * 0.4;
+    const jitterY = (rand() - 0.5) * cellH * 0.5;
     styles.push({
-      top: `${4 + rand() * 72}%`, // 4% ~ 76%，避开底部 dock
-      left: `${2 + rand() * 88}%`, // 2% ~ 90%
-      fontSize: `${0.85 + rand() * 0.95}rem`, // 0.85rem ~ 1.8rem
-      baseOpacity: 0.3 + rand() * 0.55, // 0.3 ~ 0.85
-      amplitude: (rand() > 0.5 ? 1 : -1) * (3 + rand() * 6), // +/- 3~9px
-      duration: 4 + rand() * 5, // 4~9s
-      delay: rand() * 3, // 0~3s
-      rotate: (rand() - 0.5) * 6, // -3° ~ 3°
+      top: `${Math.max(5, Math.min(80, baseTop + jitterY))}%`,
+      left: `${Math.max(8, Math.min(92, baseLeft + jitterX))}%`,
+      fontSize: `${0.8 + rand() * 1.1}rem`,
+      baseOpacity: 0.25 + rand() * 0.6,
+      amplitude: (rand() > 0.5 ? 1 : -1) * (4 + rand() * 8),
+      duration: 3 + rand() * 6,
+      delay: rand() * 4,
+      rotate: (rand() - 0.5) * 12,
     });
   }
   return styles;
@@ -84,15 +103,15 @@ export default function ScatteredLyrics({ fragments, highlightId }: Props) {
               left: s.left,
               fontSize: s.fontSize,
               opacity: isDimmed ? 0.08 : isHighlighted ? 1 : s.baseOpacity,
-              transform: `rotate(${s.rotate}deg)`,
               willChange: "transform",
-              maxWidth: "45vw",
+              textAlign: "center",
             }}
+            initial={{ transform: `translateX(-50%) rotate(${s.rotate}deg) scale(1)` }}
             animate={{
-              scale: isHighlighted ? 1.15 : 1,
+              transform: `translateX(-50%) rotate(${s.rotate}deg) scale(${isHighlighted ? 1.15 : 1})`,
             }}
             transition={{
-              scale: {
+              transform: {
                 duration: 0.5,
                 ease: [0.22, 1, 0.36, 1],
               },

@@ -19,9 +19,14 @@ npm run dev
 
 ## 网易云链接解析（粘贴链接功能）
 
-1. **新开终端**，运行：`PORT=3002 npx NeteaseCloudMusicApi`
+出现「无法连接网易云 API」时，推荐使用**本地 API**（更稳定）：
+
+1. **新开终端**，运行：`npm run netease-api` 或 `PORT=3002 npx NeteaseCloudMusicApi`
 2. **在 `.env.local` 中配置**：`NETEASE_API_URL=http://localhost:3002`
-3. **重启 Next.js** 即可使用
+3. **重启 Next.js**（Ctrl+C 后重新 `npm run dev`）
+
+若使用 Railway 等公网 API，首次请求可能需等待 30–60 秒（冷启动）。  
+页面底部可点击「检查 API 状态」诊断连接。
 
 ## 云端部署
 

@@ -3,6 +3,38 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 
+const isExternalCover = (url: string) =>
+  /^https?:\/\//.test(url) && (url.includes("music.126.net") || url.includes("blob.vercel-storage.com"));
+
+function CoverImage({ src, alt }: { src: string; alt: string }) {
+  const [err, setErr] = useState(false);
+  if (!src) {
+    return (
+      <div className="flex h-full w-full items-center justify-center text-4xl text-[var(--ink-muted)]">
+        🎵
+      </div>
+    );
+  }
+  if (err) {
+    return (
+      <div className="flex h-full w-full items-center justify-center text-4xl text-[var(--ink-muted)]">
+        🎵
+      </div>
+    );
+  }
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      fill
+      className="object-cover"
+      sizes="(max-width: 640px) 45vw, (max-width: 1024px) 22vw, 180px"
+      unoptimized={isExternalCover(src)}
+      onError={() => setErr(true)}
+    />
+  );
+}
+
 type AlbumCover = {
   id: string;
   imageUrl: string;
@@ -12,31 +44,29 @@ type AlbumCover = {
   genre: string | null;
 };
 
-// 自动摆放：随机偏移与旋转，营造唱片墙效果
-function getRandomStyle(index: number) {
-  const rotations = [-3, -2, -1, 0, 1, 2, 3];
-  const rotation = rotations[index % rotations.length];
-  const yOffset = (index % 3 - 1) * 4;
-  const xOffset = (index % 5 - 2) * 3;
-  return {
-    transform: `rotate(${rotation}deg) translate(${xOffset}px, ${yOffset}px)`,
-    zIndex: index,
-  };
+function getItemStyle(index: number) {
+  return { zIndex: index };
 }
 
-export default function AlbumGrid() {
+type AlbumGridProps = {
+  categoryId?: string | null;
+};
+
+export default function AlbumGrid({ categoryId }: AlbumGridProps) {
   const [items, setItems] = useState<AlbumCover[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/albums")
+    const base = categoryId ? `/api/albums?categoryId=${encodeURIComponent(categoryId)}` : "/api/albums";
+    const url = `${base}${base.includes("?") ? "&" : "?"}_=${Date.now()}`;
+    fetch(url, { cache: "no-store", headers: { "Cache-Control": "no-cache", Pragma: "no-cache" } })
       .then((res) => res.json())
       .then((data) => {
         setItems(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, []);
+  }, [categoryId]);
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -79,17 +109,11 @@ export default function AlbumGrid() {
         <div
           key={item.id}
           className="album-cover-wrapper group"
-          style={getRandomStyle(index)}
+          style={getItemStyle(index)}
         >
           <div className="album-cover-inner relative">
             <div className="relative aspect-square overflow-hidden rounded-lg bg-[var(--paper-dark)] shadow-lg transition-all duration-300 group-hover:scale-105 group-hover:shadow-xl">
-              <Image
-                src={item.imageUrl}
-                alt={item.albumName}
-                fill
-                className="object-cover"
-                sizes="(max-width: 640px) 45vw, (max-width: 1024px) 22vw, 180px"
-              />
+              <CoverImage src={item.imageUrl} alt={item.albumName} />
             </div>
             <button
               onClick={(e) => handleDelete(item.id, e)}

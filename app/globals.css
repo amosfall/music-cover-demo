@@ -1,12 +1,12 @@
 @import "tailwindcss";
 
 :root {
-  --paper: #fafafa;
-  --paper-dark: #f0f0f0;
-  --ink: #1a1a1a;
+  --paper: #FDFDFD;
+  --paper-dark: #f5f5f5;
+  --ink: rgba(0, 0, 0, 0.8);
   --ink-muted: #888888;
-  --accent: #333333;
-  --accent-light: #555555;
+  --accent: #1a1a1a;
+  --accent-light: #333333;
   --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.06);
   --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
@@ -47,8 +47,21 @@ body {
 
 /* Journal-style decorative elements */
 .journal-page {
-  background: #fafafa;
+  background: #FDFDFD;
   min-height: 100vh;
+}
+
+/* 首页标题：Noto Serif SC 细体 + 字间距，极简艺术感 */
+.hero-title {
+  font-family: var(--font-noto-serif-sc), "Noto Serif SC", "Source Han Serif SC", serif;
+  letter-spacing: 0.12em;
+  font-weight: 200;
+}
+
+.hero-subtitle {
+  font-family: var(--font-noto-serif-sc), "Noto Serif SC", "Source Han Serif SC", serif;
+  letter-spacing: 0.06em;
+  font-weight: 300;
 }
 
 .scrapbook-card {
@@ -61,43 +74,62 @@ body {
   background-image: none;
 }
 
-/* 专辑封面墙 - 自动摆放布局 */
+/* 专辑封面墙 - 紧凑方格 + 呼吸感悬浮 */
 .album-wall {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 1.5rem 1rem;
-  padding: 1rem 0;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+  padding: 20px 0;
 }
 
 @media (min-width: 640px) {
   .album-wall {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 2rem 1.5rem;
+    gap: 20px;
   }
 }
 
 @media (min-width: 1024px) {
   .album-wall {
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 2.5rem 2rem;
+    gap: 24px;
   }
 }
 
 .album-cover-wrapper {
   position: relative;
-  transition: transform 0.2s ease;
+  transition: transform 0.3s ease;
+}
+
+.album-cover-wrapper:hover {
+  transform: scale(1.05) rotate(1deg);
 }
 
 .album-cover-inner {
   position: relative;
 }
 
-/* ===== 歌词画廊（全屏沉浸式） ===== */
+.album-cover-inner .relative.aspect-square {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s ease;
+}
+
+.album-cover-inner:hover .relative.aspect-square {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* ===== 歌词画廊（全屏沉浸式，适配浏览器/移动端） ===== */
 .lyrics-gallery {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100dvh;
+  min-height: 100svh;
   background: #fafafa;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 /* 歌词文字 */
@@ -126,13 +158,14 @@ body {
   }
 }
 
-/* 底部专辑封面横栏 */
+/* 底部专辑封面横栏（安全区适配） */
 .album-strip {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 30;
+  padding-bottom: env(safe-area-inset-bottom, 0);
   background: rgba(255, 255, 255, 0.75);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -149,13 +182,24 @@ body {
   display: none;
 }
 
-/* ===== 歌词艺术墙 - 散乱布局 ===== */
+/* ===== 歌词艺术墙 - 散乱布局（适配视口与安全区） ===== */
 .lyrics-wall-container {
   position: relative;
   width: 100%;
-  height: calc(100vh - 120px);
-  overflow: hidden;
+  min-height: 0;
   flex: 1;
+  overflow: hidden;
+  -webkit-overflow-scrolling: touch;
+  /* 固定高度兜底，flex:1 在歌词画廊中会占满剩余空间 */
+  height: calc(100vh - 140px);
+  height: calc(100dvh - 140px);
+  height: calc(100svh - 140px);
+}
+
+@supports (height: 100dvh) {
+  .lyrics-wall-container {
+    height: calc(100dvh - 140px);
+  }
 }
 
 .scattered-fragment {
@@ -169,6 +213,8 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: min(42vw, 300px);
+  text-align: center;
 }
 
 /* 保留 .lyrics-text 用于弹窗预览等场景 */
@@ -182,17 +228,18 @@ body {
   border-left: 2px solid var(--accent-light);
 }
 
-/* Tab 导航 */
+/* Tab 导航：圆润胶囊，与背景柔和对比 */
 .tab-nav {
   display: inline-flex;
   gap: 0.25rem;
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(0, 0, 0, 0.04);
   border-radius: 9999px;
-  padding: 0.25rem;
+  padding: 0.35rem;
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .tab-nav a {
-  padding: 0.5rem 1.25rem;
+  padding: 0.5rem 1.35rem;
   border-radius: 9999px;
   font-size: 0.875rem;
   font-weight: 500;
@@ -203,9 +250,142 @@ body {
 
 .tab-nav a:hover {
   color: var(--ink);
+  background: rgba(0, 0, 0, 0.03);
 }
 
 .tab-nav a.active {
-  background: var(--accent);
-  color: white;
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* ===== 宝丽来风格海报导出 (#polaroid-export-container) ===== */
+/* 1080x1080 正方形容器，Flex 居中，照片网格化抖动散落 */
+#polaroid-export-container {
+  box-sizing: border-box;
+  font-family: Georgia, "Noto Serif SC", "Source Han Serif SC", serif;
+}
+
+#polaroid-export-container .poster-photo-zone {
+  /* position/width/height 由组件内联设置 */
+}
+
+/* 拍立得卡片：绝对定位，由 JS 设置 top/left/rotate；白边、阴影、底部文字 */
+#polaroid-export-container .polaroid-card {
+  position: absolute;
+  background: #fff;
+  padding: 20px 20px 60px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  width: 280px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* 图片区固定为 1:1 比例，不拉成长条；封面用 cover 裁成正方形 */
+#polaroid-export-container .polaroid-card .polaroid-img-wrap {
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: #f5f5f5;
+  flex-shrink: 0;
+}
+
+#polaroid-export-container .polaroid-card .polaroid-img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  vertical-align: middle;
+}
+
+#polaroid-export-container .polaroid-card .polaroid-caption {
+  position: absolute;
+  bottom: 12px;
+  left: 20px;
+  right: 20px;
+  font-family: Georgia, "Noto Serif SC", "Source Han Serif SC", serif;
+  font-size: 19px;
+  line-height: 1.4;
+  color: #333;
+  text-align: center;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+}
+
+#polaroid-export-container .polaroid-card .polaroid-caption .polaroid-artist {
+  font-size: 15px;
+  color: #666;
+  margin-top: 3px;
+}
+
+#polaroid-export-container .poster-title {
+  text-align: center;
+  font-size: 40px;
+  font-weight: 600;
+  color: #333;
+  letter-spacing: 0.08em;
+}
+
+#polaroid-export-container .poster-footer {
+  font-size: 16px;
+  color: #666;
+}
+
+#polaroid-export-container .poster-slogan {
+  font-size: 16px;
+  color: #666;
+}
+
+/* 透明背景预览时提升标题/日期/Slogan 在深色或浅色背景上的可读性 */
+#polaroid-export-container.is-transparent .poster-title,
+#polaroid-export-container.is-transparent .poster-footer,
+#polaroid-export-container.is-transparent .poster-slogan {
+  color: #222;
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.8), 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+/* 底部浮动搜索触发器：毛玻璃胶囊 */
+.search-trigger-capsule {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0) + 1.25rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 9999px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.03);
+  font-size: 0.9375rem;
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+}
+
+.search-trigger-capsule:hover {
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--ink);
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+/* 全屏搜索 Overlay：高斯模糊背景 */
+.search-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(253, 253, 253, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
 }

@@ -4,18 +4,23 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "netease-api": "PORT=3002 npx NeteaseCloudMusicApi",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@prisma/adapter-better-sqlite3": "^7.3.0",
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",
     "@vercel/blob": "^2.1.0",
     "better-sqlite3": "^12.6.2",
     "framer-motion": "^12.33.0",
+    "html-to-image": "^1.11.13",
     "next": "16.1.6",
     "pg": "^8.18.0",
     "prisma": "^7.3.0",

@@ -142,7 +142,7 @@ export default function LyricsWallPage() {
     <div className="lyrics-gallery" onClick={handleClickBackground}>
       {/* 顶部 */}
       <header
-        className="relative z-10 flex items-center justify-between px-6 pt-5 sm:px-10 sm:pt-7"
+        className="relative z-10 flex items-center justify-between px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-2 sm:px-10 sm:pt-7"
         onClick={(e) => e.stopPropagation()}
       >
         <TabNav />

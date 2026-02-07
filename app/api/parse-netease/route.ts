@@ -135,6 +135,8 @@ async function fetchLyrics(baseUrl: string, songId: string): Promise<string> {
   }
 }
 
+const FETCH_TIMEOUT_MS = 60000; // Railway 冷启动可能需 30-60 秒
+
 /** 使用 NeteaseCloudMusicApi（需本地运行 npx NeteaseCloudMusicApi） */
 async function fetchViaNeteaseApi(
   baseUrl: string,
@@ -142,21 +144,30 @@ async function fetchViaNeteaseApi(
   id: string
 ): Promise<SongInfo> {
   const url = baseUrl.replace(/\/$/, "");
-  if (type === "song") {
-    const res = await fetch(`${url}/song/detail?ids=${id}`, {
-      headers: { "User-Agent": "Mozilla/5.0" },
-    });
-    if (!res.ok) throw new Error("API 请求失败");
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    if (type === "song") {
+      const res = await fetch(`${url}/song/detail?ids=${id}`, {
+        headers: { "User-Agent": "Mozilla/5.0" },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (!res.ok) throw new Error("API 请求失败");
     const data = await res.json();
     const songs = data?.songs;
     if (!songs?.length) throw new Error("未找到歌曲信息");
     const info = extractSongInfo(songs[0]);
     return { ...info, songId: id };
-  } else {
-    const res = await fetch(`${url}/album?id=${id}`, {
-      headers: { "User-Agent": "Mozilla/5.0" },
-    });
-    if (!res.ok) throw new Error("API 请求失败");
+    } else {
+      const ctrl2 = new AbortController();
+      const t2 = setTimeout(() => ctrl2.abort(), FETCH_TIMEOUT_MS);
+      const res = await fetch(`${url}/album?id=${id}`, {
+        headers: { "User-Agent": "Mozilla/5.0" },
+        signal: ctrl2.signal,
+      });
+      clearTimeout(t2);
+      if (!res.ok) throw new Error("API 请求失败");
     const data = await res.json();
     const album = data?.album;
     if (!album?.name) throw new Error("未找到专辑信息");
@@ -171,6 +182,9 @@ async function fetchViaNeteaseApi(
       songName: null,
       songId: null,
     };
+    }
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -203,6 +217,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const rawInput = body?.url?.trim();
+    const categoryId = body?.categoryId ?? null;
     if (!rawInput) {
       return NextResponse.json(
         { error: "请输入网易云音乐链接" },
@@ -284,6 +299,7 @@ export async function POST(request: NextRequest) {
           releaseYear: null,
           genre: null,
           notes: null,
+          categoryId: categoryId || null,
         },
       })
     );
@@ -294,14 +310,27 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Parse NetEase error:", error);
-    const msg =
-      error instanceof Error
-        ? error.message
-        : "解析失败，请确认 NeteaseCloudMusicApi 已运行且 NETEASE_API_URL 正确";
+    const rawMsg = error instanceof Error ? error.message : String(error);
     const isConn = isDbConnectionError(error);
-    const finalMsg = isConn
-      ? "数据库连接被断开（已自动重试一次仍失败）。请将 DATABASE_URL 改为 Neon 的「Pooled connection」连接串并重启。"
-      : msg;
+    const isNetwork =
+      rawMsg === "fetch failed" ||
+      /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|ECONNRESET|network/i.test(rawMsg);
+    let finalMsg: string;
+    if (isConn) {
+      finalMsg =
+        "数据库连接被断开（已自动重试一次仍失败）。请将 DATABASE_URL 改为 Neon 的「Pooled connection」连接串并重启。";
+    } else if (isNetwork) {
+      const hasUrl = !!process.env.NETEASE_API_URL?.trim();
+      const apiHost = process.env.NETEASE_API_URL || "";
+      const isRailway = /railway|railway\.app/i.test(apiHost);
+      finalMsg = hasUrl
+        ? isRailway
+          ? "无法连接网易云 API。若使用 Railway，首次请求可能需 30–60 秒冷启动，请稍后重试。或改用本地 API：运行 npm run netease-api，并设置 NETEASE_API_URL=http://localhost:3002"
+          : "无法连接网易云 API（网络错误）。请确认：1) NETEASE_API_URL 可从本机访问；2) 若为本地地址，请先运行 npx NeteaseCloudMusicApi。"
+        : "请先在 .env.local 中配置 NETEASE_API_URL，并运行 npx NeteaseCloudMusicApi（或填写公网 API 地址）。";
+    } else {
+      finalMsg = rawMsg || "解析失败，请确认 NeteaseCloudMusicApi 已运行且 NETEASE_API_URL 正确";
+    }
     return NextResponse.json({ error: finalMsg }, { status: 500 });
   }
 }

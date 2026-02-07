@@ -2,13 +2,30 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withDbRetry } from "@/lib/db";
 
-export async function GET() {
+export const dynamic = "force-dynamic";
+
+export async function GET(request: NextRequest) {
   try {
-    const items = await withDbRetry(() =>
-      prisma.albumCover.findMany({
+    const { searchParams } = new URL(request.url);
+    const categoryId = searchParams.get("categoryId");
+
+    const items = await withDbRetry(async () => {
+      let where: { categoryId?: string | null; OR?: { categoryId: string | null }[] } = {};
+      if (categoryId && categoryId !== "all") {
+        const defaultCat = await prisma.category.findFirst({
+          where: { name: "Default" },
+        });
+        if (defaultCat && categoryId === defaultCat.id) {
+          where = { OR: [{ categoryId: categoryId }, { categoryId: null }] };
+        } else {
+          where = { categoryId };
+        }
+      }
+      return prisma.albumCover.findMany({
+        where,
         orderBy: { createdAt: "desc" },
-      })
-    );
+      });
+    });
     return NextResponse.json(items);
   } catch (error) {
     console.error("Failed to fetch albums:", error);
@@ -22,7 +39,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { imageUrl, albumName, artistName, releaseYear, genre, notes } = body;
+    const { imageUrl, albumName, artistName, releaseYear, genre, notes, categoryId } = body;
 
     if (!imageUrl || !albumName) {
       return NextResponse.json(
@@ -40,6 +57,7 @@ export async function POST(request: NextRequest) {
           releaseYear: releaseYear ?? null,
           genre: genre ?? null,
           notes: notes ?? null,
+          categoryId: categoryId || null,
         },
       })
     );
@@ -53,3 +71,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
