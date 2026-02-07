@@ -8,6 +8,7 @@ import type { LyricFragment } from "@/components/ScatteredLyrics";
 import AlbumStrip from "@/components/AlbumStrip";
 import type { StripItem } from "@/components/AlbumStrip";
 import TabNav from "@/components/TabNav";
+import WelcomeScreen from "@/components/WelcomeScreen";
 import { getProxyImageUrl } from "@/lib/proxy-image";
 
 type WallItem = {
@@ -32,6 +33,11 @@ function getAlbumKey(item: { albumName: string; imageUrl: string }) {
 
 const STRIP_ORDER_STORAGE_KEY = "lyrics-wall-strip-order";
 
+/** 去掉 LRC 时间戳 [00:00.00]，只保留有效歌词 */
+function stripLrcTime(line: string): string {
+  return line.replace(/^\s*\[\d{1,2}:\d{2}([.:]\d{2,3})?\]\s*/, "").trim();
+}
+
 function loadStripOrder(): string[] {
   if (typeof window === "undefined") return [];
   try {
@@ -53,6 +59,7 @@ function saveStripOrder(ids: string[]) {
 }
 
 function LyricsWallContent() {
+  const [showWelcome, setShowWelcome] = useState(true);
   const [items, setItems] = useState<WallItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [highlightId, setHighlightId] = useState<string | null>(null);
@@ -117,9 +124,53 @@ function LyricsWallContent() {
     creditLineRegex.test(line) ||
     nameLabelRegex.test(line) ||
     roleLabelRegex.test(line);
-  // 去掉 LRC 时间戳 [00:00.00]，只保留有效歌词
-  const stripLrcTime = (line: string) =>
-    line.replace(/^\s*\[\d{1,2}:\d{2}([.:]\d{2,3})?\]\s*/, "").trim();
+  /** 在歌词字符串中替换某一行（按展示文本匹配），保留 LRC 时间戳 */
+  const replaceLyricLine = useCallback(
+    (lyrics: string, oldDisplayText: string, newText: string): string => {
+      const lines = lyrics.split("\n");
+      const lrcTimestampRegex = /^(\s*\[\d{1,2}:\d{2}([.:]\d{2,3})?\]\s*)/;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (stripLrcTime(line) === oldDisplayText) {
+          const match = line.match(lrcTimestampRegex);
+          const prefix = match ? match[1] : "";
+          lines[i] = prefix + newText.trim();
+          return lines.join("\n");
+        }
+      }
+      return lyrics;
+    },
+    []
+  );
+
+  const handleEditLyric = useCallback(
+    async (sourceId: string, oldText: string, newText: string) => {
+      if (!newText.trim() || newText.trim() === oldText) return;
+      const item = items.find((i) => i.id === sourceId);
+      if (!item) return;
+      const newLyrics = replaceLyricLine(item.lyrics, oldText, newText);
+      const endpoint =
+        item.source === "album" ? `/api/albums/${sourceId}` : `/api/lyrics/${sourceId}`;
+      const body =
+        item.source === "album"
+          ? { lyrics: newLyrics }
+          : { lyrics: newLyrics, albumName: item.albumName, imageUrl: item.imageUrl };
+      const res = await fetch(endpoint, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        setItems((prev) =>
+          prev.map((i) => (i.id === sourceId ? { ...i, lyrics: newLyrics } : i))
+        );
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err?.error || `保存失败 ${res.status}，请刷新后重试`);
+      }
+    },
+    [items, replaceLyricLine]
+  );
 
   // 只展示勾选「上墙」的项（老数据无字段时视为 true）
   const displayItems = useMemo(
@@ -296,6 +347,11 @@ function LyricsWallContent() {
     }
   };
 
+  // ── 每次打开诗的歌先显示欢迎页，点击进入后展示歌词墙 ──
+  if (showWelcome) {
+    return <WelcomeScreen onEnter={() => setShowWelcome(false)} />;
+  }
+
   // ── 加载态 ──
   if (loading) {
     return (
@@ -347,7 +403,7 @@ function LyricsWallContent() {
             ) : (
               <>
                 <a
-                  href="/"
+                  href="/albums"
                   className="rounded-full bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white no-underline transition-opacity hover:opacity-90"
                 >
                   去封面页添加歌曲
@@ -385,6 +441,7 @@ function LyricsWallContent() {
         onCenterSongChange={setCenterSongId}
         onFragmentClick={(albumKey) => setHighlightId((prev) => (prev === albumKey ? null : albumKey))}
         onRequestClose={() => setHighlightId(null)}
+        onEditLyric={handleEditLyric}
       />
 
       {/* 底部专辑 Dock：Portal 到 body，避免被父级 overflow/transform 裁切或遮挡 */}

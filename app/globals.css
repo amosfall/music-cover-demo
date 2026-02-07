@@ -151,7 +151,7 @@ body {
 .floating-line {
   font-family: "Georgia", "Noto Serif SC", "Source Han Serif SC", serif;
   font-size: 1.35rem;
-  line-height: 1.8;
+  line-height: 2;
   color: #1a1a1a;
   mix-blend-mode: multiply;
   text-shadow: 0 1px 10px rgba(0, 0, 0, 0.04);
@@ -162,7 +162,7 @@ body {
 @media (min-width: 640px) {
   .floating-line {
     font-size: 1.65rem;
-    line-height: 1.9;
+    line-height: 2.1;
     letter-spacing: 0.04em;
   }
 }
@@ -180,7 +180,7 @@ body {
   left: 0;
   right: 0;
   z-index: 100;
-  padding-top: 0.75rem;
+  padding-top: 0.5rem;
   padding-bottom: env(safe-area-inset-bottom, 0);
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(16px);
@@ -245,7 +245,19 @@ body {
   cursor: pointer;
 }
 
-/* 歌词墙选中后居中歌词块：一行一句、可滚动，大字+大行距+居中 */
+/* 居中歌词块内可双击编辑，需启用 pointer-events */
+.scattered-fragment.scattered-fragment-editable {
+  pointer-events: auto;
+}
+
+/* 编辑态：无文本框 */
+.editable-lyric-line {
+  outline: none;
+  border: none;
+  background: transparent;
+}
+
+/* 歌词墙选中后居中歌词块：一行一句、可滚动，大字+大行距+居中；整体略微上移保持视觉中心 */
 .lyrics-wall-center-block {
   -webkit-overflow-scrolling: touch;
   display: flex;
@@ -253,6 +265,11 @@ body {
   align-items: center;
   justify-content: center;
   text-align: center;
+}
+
+/* 单曲居中时整体上移，补偿底部专辑栏；多曲顶部排布不偏移 */
+.lyrics-wall-center-block:not(.lyrics-wall-center-block-multi) {
+  margin-top: -4%;
 }
 
 /* 多首歌时：不居中，从顶部排布、左对齐、每首歌分开 */
@@ -297,7 +314,8 @@ body {
   border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
-.tab-nav a {
+.tab-nav a,
+.tab-nav button {
   padding: 0.5rem 1.35rem;
   min-height: 44px;
   min-width: 44px;
@@ -310,6 +328,10 @@ body {
   color: var(--ink-muted);
   text-decoration: none;
   transition: all 0.2s ease;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
 }
 
 @media (max-width: 640px) {
@@ -317,18 +339,55 @@ body {
     width: 100%;
     justify-content: space-around;
   }
-  .tab-nav a {
+  .tab-nav a,
+  .tab-nav button {
+    padding: 0.4rem 0.9rem;
+    font-size: 0.8125rem;
+  }
+  .tab-nav-lyrics {
     padding: 0.4rem 0.9rem;
     font-size: 0.8125rem;
   }
 }
 
-.tab-nav a:hover {
+.tab-nav a:hover,
+.tab-nav button:hover {
   color: var(--ink);
   background: rgba(0, 0, 0, 0.03);
 }
 
-.tab-nav a.active {
+.tab-nav a.active,
+.tab-nav button.active {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* 诗的歌界面中，词按钮与胶囊分离、独立显示 */
+.tab-nav-lyrics {
+  padding: 0.5rem 1.35rem;
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ink-muted);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.tab-nav-lyrics:hover {
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.tab-nav-lyrics.active {
   background: rgba(0, 0, 0, 0.08);
   color: var(--ink);
   font-weight: 600;

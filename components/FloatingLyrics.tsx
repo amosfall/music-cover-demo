@@ -52,14 +52,14 @@ export default function FloatingLyrics({
     <AnimatePresence mode="wait">
       <motion.div
         key={itemKey}
-        className="flex flex-col items-center gap-2 px-6 sm:gap-3"
+        className="flex flex-col items-center gap-3 px-6 sm:gap-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 5, ease: "easeOut" }}
       >
         <motion.div
-          className="flex flex-col items-center gap-2 sm:gap-3"
+          className="flex flex-col items-center gap-3 sm:gap-4"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
@@ -73,7 +73,7 @@ export default function FloatingLyrics({
 
           {/* 歌手 · 专辑 */}
           <motion.p
-            className="mt-6 text-sm tracking-widest text-gray-400/80 sm:text-base"
+            className="mt-10 text-sm tracking-widest text-gray-400/80 sm:mt-12 sm:text-base"
             variants={lineEnter}
           >
             {[artistName, albumName].filter(Boolean).join("  ·  ")}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { getProxyImageUrl } from "@/lib/proxy-image";
 import type { LyricsCardData } from "./LyricsWall";
@@ -49,6 +50,7 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [selectedSong, setSelectedSong] = useState<SearchResult | null>(null);
+  const [fullLyricsCache, setFullLyricsCache] = useState<string>(""); // 选中歌曲的完整歌词，用于预测
   const lyricsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -90,7 +92,6 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
   const handleLyricsChange = (value: string) => {
     setLyrics(value);
     if (mode === "search" && !searchQuery.trim()) {
-      // 仅在歌曲名搜索框为空时，才自动用歌词搜索
       if (lyricsTimerRef.current) clearTimeout(lyricsTimerRef.current);
       lyricsTimerRef.current = setTimeout(() => {
         const firstLine = value.split(/\n/).find((l) => l.trim());
@@ -98,6 +99,30 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
       }, 600);
     }
   };
+
+  // 输入预测：第二行及以上时，取最佳匹配的补全部分作为内联灰色提示
+  const inlineHint = (() => {
+    const lines = lyrics.split(/\n/);
+    if (lines.length < 2 || !fullLyricsCache.trim()) return "";
+    const currentLine = lines[lines.length - 1] ?? "";
+    const needle = currentLine.replace(/\s+/g, "").toLowerCase();
+    if (needle.length < 1) return "";
+    const all = fullLyricsCache.split(/\n/).filter((l) => l.trim());
+    const matched = all.find((l) => {
+      const norm = l.replace(/\s+/g, "").toLowerCase();
+      return norm.startsWith(needle) || (needle.length >= 2 && norm.includes(needle));
+    });
+    if (!matched) return "";
+    const normMatched = matched.replace(/\s+/g, "").toLowerCase();
+    const idx = normMatched.indexOf(needle);
+    if (idx < 0) return matched;
+    const skip = needle.length;
+    let count = 0;
+    for (let i = 0; i < matched.length; i++) {
+      if (/\S/.test(matched[i]) && ++count > skip) return matched.slice(i);
+    }
+    return "";
+  })();
 
   // 歌曲名搜索框变化 -> 用歌曲名搜索（防抖，优先级更高）
   const handleSearchQueryChange = (value: string) => {
@@ -124,12 +149,46 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
     }
   };
 
-  const handleSelectSong = (song: SearchResult) => {
+  const handleSelectSong = async (song: SearchResult) => {
     setSelectedSong(song);
     setAlbumName(song.albumName);
     setArtistName(song.artistName);
     setImageUrl(song.picUrl);
     setError(null);
+    // 拉取完整歌词，根据已输入内容匹配位置，填充接下来的五行
+    try {
+      const res = await fetch(`/api/song-lyrics?id=${song.id}`);
+      const data = await res.json();
+      const raw = data?.lyrics ?? "";
+      if (raw) {
+        setFullLyricsCache(raw);
+        const fullLines = raw.split(/\n/).filter((l: string) => l.trim());
+        const userInput = lyrics.trim();
+        if (userInput) {
+          const userLines = userInput.split(/\n/).map((l) => l.trim()).filter(Boolean);
+          const lastLine = userLines[userLines.length - 1] ?? "";
+          const normLast = lastLine.replace(/\s+/g, "").toLowerCase();
+          let matchIdx = -1;
+          for (let i = 0; i < fullLines.length; i++) {
+            const norm = fullLines[i].replace(/\s+/g, "").toLowerCase();
+            if (norm.includes(normLast) || (normLast.length >= 2 && norm.startsWith(normLast))) {
+              matchIdx = i;
+              break;
+            }
+          }
+          const nextFive = matchIdx >= 0
+            ? fullLines.slice(matchIdx + 1, matchIdx + 6)
+            : fullLines.slice(0, 5);
+          setLyrics(userInput + "\n" + nextFive.join("\n"));
+        } else {
+          setLyrics(fullLines.slice(0, 5).join("\n"));
+        }
+      } else {
+        setFullLyricsCache("");
+      }
+    } catch {
+      setFullLyricsCache("");
+    }
   };
 
   const handleSelectAlbum = (album: Album) => {
@@ -209,9 +268,9 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
     }
   };
 
-  return (
+  const overlay = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
+      className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/50 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(6rem,env(safe-area-inset-bottom)+5rem)]"
       onClick={onClose}
     >
       <div
@@ -248,16 +307,39 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
               ? "输入歌词后自动搜索匹配歌曲，搜索不准时可用下方歌曲名搜索"
               : "每行一句歌词"}
           </p>
-          <div className="relative">
-            <span className="absolute left-3 top-3 text-lg text-[var(--accent-light)] opacity-60">
+          <div className="relative min-h-[12rem] rounded-lg border border-[var(--paper-dark)] bg-white">
+            <span className="absolute left-3 top-3 z-10 text-lg text-[var(--accent-light)] opacity-60">
               &ldquo;
             </span>
+            <pre
+              aria-hidden
+              className="pointer-events-none m-0 min-h-[12rem] whitespace-pre-wrap break-words px-4 py-3 pl-8 pr-8 font-[inherit] text-[inherit] leading-[inherit]"
+              style={{
+                fontFamily: "Georgia, 'Noto Serif SC', serif",
+                fontSize: "1.05rem",
+                lineHeight: "1.7",
+              }}
+            >
+              {lyrics}
+              {inlineHint && (
+                <span className="text-[var(--ink-muted)] opacity-60">{inlineHint}</span>
+              )}
+            </pre>
             <textarea
               value={lyrics}
               onChange={(e) => handleLyricsChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (inlineHint && (e.key === "Tab" || e.key === "ArrowRight")) {
+                  e.preventDefault();
+                  const lines = lyrics.split(/\n/);
+                  const last = lines.pop() ?? "";
+                  const base = lines.join("\n");
+                  setLyrics(base + (base ? "\n" : "") + last + inlineHint);
+                }
+              }}
               placeholder={"输入歌词，每行一句...\n例如：\n我曾经跨过山和大海\n也穿过人山人海"}
-              rows={4}
-              className="w-full rounded-lg border border-[var(--paper-dark)] bg-white px-4 py-3 pl-8 pr-8 text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent)] focus:outline-none"
+              rows={8}
+              className="absolute inset-0 w-full resize-none overflow-auto rounded-lg border-0 bg-transparent px-4 py-3 pl-8 pr-8 text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none focus:ring-0"
               style={{
                 fontFamily: "Georgia, 'Noto Serif SC', serif",
                 fontSize: "1.05rem",
@@ -283,7 +365,10 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
             搜索歌曲
           </button>
           <button
-            onClick={() => setMode("select")}
+            onClick={() => {
+              setMode("select");
+              setFullLyricsCache("");
+            }}
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
               mode === "select"
                 ? "bg-[var(--accent)] text-white"
@@ -297,6 +382,7 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
               setMode("manual");
               setSelectedAlbum(null);
               setSelectedSong(null);
+              setFullLyricsCache("");
             }}
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
               mode === "manual"
@@ -534,4 +620,7 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") return null;
+  return createPortal(overlay, document.body);
 }

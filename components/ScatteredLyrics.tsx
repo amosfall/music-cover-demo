@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 
 export type LyricFragment = {
@@ -23,6 +23,8 @@ type Props = {
   onFragmentClick?: (albumKey: string) => void;
   /** 居中界面显示时，点击界面外（遮罩）时调用，用于退出居中 */
   onRequestClose?: () => void;
+  /** 双击某行歌词时编辑，保存后调用 */
+  onEditLyric?: (sourceId: string, oldText: string, newText: string) => void | Promise<void>;
 };
 
 /**
@@ -46,7 +48,9 @@ type FragmentStyle = {
 
 const COL_GAP_PCT = 5;
 
-/** 网格排布，整齐不倾斜；小屏用 fewer 列、略大字号 */
+/** 网格排布，整齐不倾斜；小屏用 fewer 列、略大字号；整体向上偏移保持视觉居中 */
+const VERTICAL_OFFSET_PCT = 4; // 整体上移 4%，补偿底部专辑栏视觉重心
+
 function generateLayout(
   count: number,
   cols: number,
@@ -54,9 +58,11 @@ function generateLayout(
 ): FragmentStyle[] {
   const rand = seededRandom(42);
   const styles: FragmentStyle[] = [];
+  const paddingTop = 3;
+  const paddingBottom = 7;
   const padding = 5;
   const usableW = 100 - padding * 2;
-  const usableH = 100 - padding * 2;
+  const usableH = 100 - paddingTop - paddingBottom;
   const numRows = Math.ceil(count / cols) || 1;
   const rowStep = usableH / numRows;
   const colWidth = (usableW - (cols - 1) * COL_GAP_PCT) / cols;
@@ -64,7 +70,7 @@ function generateLayout(
   let col = 0;
   for (let i = 0; i < count; i++) {
     const cellCenterX = padding + col * (colWidth + COL_GAP_PCT) + colWidth / 2;
-    const cellCenterY = padding + row * rowStep + rowStep / 2;
+    const cellCenterY = paddingTop + row * rowStep + rowStep / 2 - VERTICAL_OFFSET_PCT;
     const jitterX = (rand() - 0.5) * (colWidth * 0.15);
     const jitterY = (rand() - 0.5) * (rowStep * 0.2);
     styles.push({
@@ -82,9 +88,129 @@ function generateLayout(
   return styles;
 }
 
-export default function ScatteredLyrics({ fragments, highlightId, centerSongId = null, onCenterSongChange, onFragmentClick, onRequestClose }: Props) {
+/** 可双击编辑的歌词行 */
+function EditableLyricLine({
+  text,
+  sourceId,
+  onEdit,
+  onBeforeEdit,
+  className,
+  style,
+}: {
+  text: string;
+  sourceId: string;
+  onEdit?: (sourceId: string, oldText: string, newText: string) => void | Promise<void>;
+  /** 进入编辑前调用，用于取消父级单击选择等 */
+  onBeforeEdit?: () => void;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(text);
+  const editRef = useRef<HTMLSpanElement | null>(null);
+
+  const commitEdit = useCallback(() => {
+    const raw = editRef.current?.innerText ?? value;
+    const trimmed = raw.trim();
+    if (trimmed && trimmed !== text && onEdit) {
+      onEdit(sourceId, text, trimmed);
+    }
+    setEditing(false);
+    setValue(text);
+  }, [value, text, sourceId, onEdit]);
+
+  const cancelEdit = useCallback(() => {
+    setEditing(false);
+    setValue(text);
+  }, [text]);
+
+  useEffect(() => {
+    if (editing && editRef.current) {
+      editRef.current.innerText = value;
+      requestAnimationFrame(() => {
+        editRef.current?.focus();
+        const sel = window.getSelection();
+        if (sel) {
+          sel.selectAllChildren(editRef.current!);
+          sel.collapseToEnd();
+        }
+      });
+    }
+  }, [editing]);
+
+  if (editing) {
+    return (
+      <span
+        ref={(r) => { editRef.current = r; }}
+        contentEditable
+        suppressContentEditableWarning
+        className={`${className ?? ""} editable-lyric-line`}
+        style={{
+          ...style,
+          outline: "none",
+          border: "none",
+          background: "transparent",
+        }}
+        onBlur={commitEdit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commitEdit();
+          }
+          if (e.key === "Escape") {
+            e.preventDefault();
+            cancelEdit();
+          }
+        }}
+        onClick={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      />
+    );
+  }
+
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      className={className}
+      style={style}
+      onDoubleClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (onEdit) {
+          onBeforeEdit?.();
+          setValue(text);
+          setEditing(true);
+        }
+      }}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && onEdit) {
+          e.preventDefault();
+          setValue(text);
+          setEditing(true);
+        }
+      }}
+      title={onEdit ? "双击编辑" : undefined}
+    >
+      {text}
+    </span>
+  );
+}
+
+const CLICK_DELAY_MS = 280; // 延迟单击，双击时取消选择
+
+export default function ScatteredLyrics({ fragments, highlightId, centerSongId = null, onCenterSongChange, onFragmentClick, onRequestClose, onEditLyric }: Props) {
   const [cols, setCols] = useState(5);
   const [minFontRem, setMinFontRem] = useState(0.9);
+  const pendingSelectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearPendingSelect = useCallback(() => {
+    if (pendingSelectRef.current) {
+      clearTimeout(pendingSelectRef.current);
+      pendingSelectRef.current = null;
+    }
+  }, []);
 
   const highlightedFragments = useMemo(
     () => (highlightId ? fragments.filter((f) => f.albumKey === highlightId) : []),
@@ -93,6 +219,13 @@ export default function ScatteredLyrics({ fragments, highlightId, centerSongId =
   const dimmedFragments = useMemo(
     () => (highlightId ? fragments.filter((f) => f.albumKey !== highlightId) : fragments),
     [fragments, highlightId]
+  );
+
+  useEffect(
+    () => () => {
+      if (pendingSelectRef.current) clearTimeout(pendingSelectRef.current);
+    },
+    []
   );
 
   useEffect(() => {
@@ -159,10 +292,15 @@ export default function ScatteredLyrics({ fragments, highlightId, centerSongId =
               clickable
                 ? (e) => {
                     e.stopPropagation();
-                    onFragmentClick?.(frag.albumKey);
+                    clearPendingSelect();
+                    pendingSelectRef.current = setTimeout(() => {
+                      pendingSelectRef.current = null;
+                      onFragmentClick?.(frag.albumKey);
+                    }, CLICK_DELAY_MS);
                   }
                 : undefined
             }
+            onDoubleClick={(e) => e.stopPropagation()}
             onKeyDown={
               clickable
                 ? (e) => {
@@ -175,7 +313,13 @@ export default function ScatteredLyrics({ fragments, highlightId, centerSongId =
                 : undefined
             }
           >
-            {frag.text}
+            <EditableLyricLine
+              text={frag.text}
+              sourceId={frag.sourceId}
+              onEdit={onEditLyric}
+              onBeforeEdit={clearPendingSelect}
+              style={{ display: "inline" }}
+            />
           </motion.div>
         );
       })}
@@ -203,6 +347,7 @@ export default function ScatteredLyrics({ fragments, highlightId, centerSongId =
             className={`lyrics-wall-center-block relative z-10 max-h-[70%] max-w-[85%] overflow-y-auto overflow-x-hidden px-4 py-6 ${displayingMultiple ? "lyrics-wall-center-block-multi" : ""}`}
             style={{ fontFamily: 'Georgia, "Noto Serif SC", "Source Han Serif SC", serif' }}
             onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
           >
             {(() => {
               const bySong = new Map<string, LyricFragment[]>();
@@ -243,7 +388,7 @@ export default function ScatteredLyrics({ fragments, highlightId, centerSongId =
                       {lines.map((frag, i) => (
                         <div
                           key={`${frag.sourceId}-${i}`}
-                          className="scattered-fragment text-[var(--ink)] text-xl sm:text-2xl leading-loose"
+                          className="scattered-fragment scattered-fragment-editable text-[var(--ink)] text-xl sm:text-2xl leading-loose cursor-text"
                           style={{
                             whiteSpace: "normal",
                             maxWidth: "none",
@@ -251,7 +396,12 @@ export default function ScatteredLyrics({ fragments, highlightId, centerSongId =
                             mixBlendMode: "multiply",
                           }}
                         >
-                          {frag.text}
+                          <EditableLyricLine
+                            text={frag.text}
+                            sourceId={frag.sourceId}
+                            onEdit={onEditLyric}
+                            className="inline-block min-w-[1em] rounded hover:bg-black/5"
+                          />
                         </div>
                       ))}
                     </div>
