@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import ScatteredLyrics from "@/components/ScatteredLyrics";
 import type { LyricFragment } from "@/components/ScatteredLyrics";
@@ -63,7 +64,16 @@ export default function LyricsWallPage() {
   const fetchVersionRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const userHasToggledRef = useRef(false);
+  const searchParams = useSearchParams();
+  const router = useRouter();
   useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    if (searchParams.get("manage") === "1") setShowManageModal(true);
+  }, [searchParams]);
+  const closeManageModal = useCallback(() => {
+    setShowManageModal(false);
+    if (searchParams.get("manage") === "1") router.replace("/lyrics-wall");
+  }, [searchParams, router]);
 
   const fetchData = useCallback(() => {
     abortRef.current?.abort();
@@ -365,13 +375,6 @@ export default function LyricsWallPage() {
         onClick={(e) => e.stopPropagation()}
       >
         <TabNav />
-        <button
-          type="button"
-          onClick={() => setShowManageModal(true)}
-          className="min-h-[44px] rounded-full border border-[var(--paper-dark)] bg-white px-4 py-2 text-sm font-medium text-[var(--ink)] hover:bg-[var(--paper-dark)]"
-        >
-          管理展示
-        </button>
       </header>
 
       {/* 散乱漂浮歌词：点击某行可选中对应专辑、唤起居中展示 */}
@@ -408,18 +411,18 @@ export default function LyricsWallPage() {
         showManageModal &&
         createPortal(
           <div
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4"
-            onClick={(e) => e.target === e.currentTarget && setShowManageModal(false)}
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
+            onClick={(e) => e.target === e.currentTarget && closeManageModal()}
           >
             <div
-              className="flex max-h-[85vh] w-full max-w-[calc(100vw-2rem)] flex-col rounded-xl bg-white shadow-xl sm:max-w-md sm:rounded-2xl"
+              className="flex max-h-[85dvh] w-full max-w-[calc(100vw-2rem)] flex-col rounded-xl bg-white shadow-xl sm:max-w-md sm:rounded-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-[var(--paper-dark)] p-4">
                 <h2 className="text-lg font-medium text-[var(--ink)]">选择上墙</h2>
                 <button
                   type="button"
-                  onClick={() => setShowManageModal(false)}
+                  onClick={() => closeManageModal()}
                   className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full p-1.5 text-[var(--ink-muted)] hover:bg-[var(--paper-dark)] hover:text-[var(--ink)]"
                   aria-label="关闭"
                 >

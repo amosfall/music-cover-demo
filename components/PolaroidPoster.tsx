@@ -46,7 +46,7 @@ type Pos = { left: number; top: number };
 
 const EXPORT_SIZE = 1080;
 const CARD_W = 280;
-const CARD_H = 368;
+const CARD_H = 280;
 const PADDING = 60;
 const GRID_TIGHTEN = 0.68;
 const FOOTER_BOTTOM = 30;
@@ -61,7 +61,16 @@ function hashToUnit(h: number): number {
   return (h % 10000) / 10000;
 }
 
-type CardStyle = { top: string; left: string; transform: string; zIndex: number };
+type CardStyle = {
+  top: string;
+  left: string;
+  transform: string;
+  zIndex: number;
+  /** 网格展开时的缩放与尺寸，用于每张完整展示 */
+  scale?: number;
+  width?: number;
+  height?: number;
+};
 
 function formatDate(d: Date) {
   return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
@@ -96,17 +105,31 @@ function SortablePolaroid({
     ? `${CSS.Transform.toString(transform)} ${baseTransform}`
     : baseTransform;
 
+  const hasScale = cardStyle.scale != null;
   const style: React.CSSProperties = {
     position: "absolute",
     top: cardStyle.top,
     left: cardStyle.left,
     transform: mergedTransform,
-    transition,
+    transition: transition || "left 0.5s ease, top 0.5s ease, transform 0.5s ease, width 0.5s ease, height 0.5s ease",
     zIndex: isDragging ? 999 : cardStyle.zIndex,
     cursor: isDragging ? "grabbing" : "grab",
     userSelect: "none",
     WebkitUserSelect: "none",
+    ...(hasScale && cardStyle.width != null && cardStyle.height != null
+      ? { width: cardStyle.width, height: cardStyle.height, overflow: "hidden" }
+      : {}),
   };
+
+  const innerStyle: React.CSSProperties =
+    hasScale && cardStyle.scale != null
+      ? {
+          width: CARD_W,
+          height: CARD_H,
+          transform: `scale(${cardStyle.scale})`,
+          transformOrigin: "top left",
+        }
+      : {};
 
   return (
     <div
@@ -116,22 +139,18 @@ function SortablePolaroid({
       {...attributes}
       {...listeners}
     >
-      <div className="polaroid-img-wrap">
-        <img
-          src={getImageSrc(item.imageUrl, item.id)}
-          alt={item.albumName}
-          referrerPolicy="no-referrer"
-          crossOrigin="anonymous"
-          draggable={false}
-          onDragStart={(e) => e.preventDefault()}
-          style={{ WebkitUserDrag: "none" } as React.CSSProperties}
-        />
-      </div>
-      <div className="polaroid-caption">
-        <div>{item.albumName}</div>
-        {item.artistName && (
-          <div className="polaroid-artist">{item.artistName}</div>
-        )}
+      <div style={{ ...innerStyle, overflow: "hidden" }}>
+        <div className="polaroid-img-wrap">
+          <img
+            src={getImageSrc(item.imageUrl, item.id)}
+            alt={item.albumName}
+            referrerPolicy="no-referrer"
+            crossOrigin="anonymous"
+            draggable={false}
+            onDragStart={(e) => e.preventDefault()}
+            style={{ WebkitUserDrag: "none" } as React.CSSProperties}
+          />
+        </div>
       </div>
     </div>
   );
@@ -158,6 +177,7 @@ export default function PolaroidPoster({
   const [sloganPos, setSloganPos] = useState<Pos>({ left: 50, top: 94 });
   const [datePos, setDatePos] = useState<Pos>({ left: 50, top: 90 });
   const [editing, setEditing] = useState<"title" | "slogan" | "date" | null>(null);
+  const [spreadOut, setSpreadOut] = useState(false);
   const dragRef = useRef<{
     el: "title" | "slogan" | "date";
     startX: number;
@@ -213,34 +233,59 @@ export default function PolaroidPoster({
       (is1x1 ? EXPORT_SIZE : Math.round(EXPORT_SIZE * 0.75)) - PADDING * 2;
     const zoneW = contentW;
     const zoneH = contentH - 80;
-    const cellW = (zoneW / cols) * GRID_TIGHTEN;
-    const cellH = (zoneH / rows) * GRID_TIGHTEN;
-    const offsetX = (zoneW - cols * cellW) / 2;
-    const offsetY = (zoneH - rows * cellH) / 2;
 
-    const styles: CardStyle[] = list.map((item, i) => {
-      const row = Math.floor(i / cols);
-      const col = i % cols;
-      const centerX = offsetX + (col + 0.5) * cellW;
-      const centerY = offsetY + (row + 0.5) * cellH;
-      const h1 = hashStr(item.id + String(i));
-      const h2 = hashStr(item.id + String(i + 100));
-      const jitterX = (hashToUnit(h1) * 2 - 1) * 0.1 * cellW;
-      const jitterY = (hashToUnit(h2) * 2 - 1) * 0.1 * cellH;
-      const leftPx = centerX - CARD_W / 2 + jitterX;
-      const topPx = centerY - CARD_H / 2 + jitterY;
-      const leftPct = (leftPx / zoneW) * 100;
-      const topPct = (topPx / zoneH) * 100;
-      const rot = -15 + (hashStr(item.id + String(i + 200)) % 31);
-      return {
-        top: `${topPct}%`,
-        left: `${leftPct}%`,
-        transform: `rotate(${rot}deg)`,
-        zIndex: i,
-      };
-    });
-    setCardStyles(styles);
-  }, [listKey, list.length, ratio]);
+    if (spreadOut) {
+      const cellW = zoneW / cols;
+      const cellH = zoneH / rows;
+      const scale = Math.min(cellW / CARD_W, cellH / CARD_H) * 0.92;
+      const w = Math.floor(CARD_W * scale);
+      const h = Math.floor(CARD_H * scale);
+      const styles: CardStyle[] = list.map((_, i) => {
+        const row = Math.floor(i / cols);
+        const col = i % cols;
+        const leftPx = Math.round(col * cellW + (cellW - w) / 2);
+        const topPx = Math.round(row * cellH + (cellH - h) / 2);
+        return {
+          top: `${topPx}px`,
+          left: `${leftPx}px`,
+          transform: "rotate(0deg)",
+          zIndex: i,
+          scale,
+          width: w,
+          height: h,
+        };
+      });
+      setCardStyles(styles);
+    } else {
+      const cellW = (zoneW / cols) * GRID_TIGHTEN;
+      const cellH = (zoneH / rows) * GRID_TIGHTEN;
+      const offsetX = (zoneW - cols * cellW) / 2;
+      const offsetY = (zoneH - rows * cellH) / 2;
+
+      const styles: CardStyle[] = list.map((item, i) => {
+        const row = Math.floor(i / cols);
+        const col = i % cols;
+        const centerX = offsetX + (col + 0.5) * cellW;
+        const centerY = offsetY + (row + 0.5) * cellH;
+        const h1 = hashStr(item.id + String(i));
+        const h2 = hashStr(item.id + String(i + 100));
+        const jitterX = (hashToUnit(h1) * 2 - 1) * 0.1 * cellW;
+        const jitterY = (hashToUnit(h2) * 2 - 1) * 0.1 * cellH;
+        const leftPx = centerX - CARD_W / 2 + jitterX;
+        const topPx = centerY - CARD_H / 2 + jitterY;
+        const leftPct = (leftPx / zoneW) * 100;
+        const topPct = (topPx / zoneH) * 100;
+        const rot = -15 + (hashStr(item.id + String(i + 200)) % 31);
+        return {
+          top: `${topPct}%`,
+          left: `${leftPct}%`,
+          transform: `rotate(${rot}deg)`,
+          zIndex: i,
+        };
+      });
+      setCardStyles(styles);
+    }
+  }, [listKey, list.length, ratio, spreadOut]);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
@@ -419,7 +464,13 @@ export default function PolaroidPoster({
                 left: 0,
                 width: zoneW,
                 height: zoneH,
+                cursor: "pointer",
               }}
+              onClick={() => setSpreadOut((v) => !v)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && setSpreadOut((v) => !v)}
+              aria-label={spreadOut ? "收起" : "展开为网格"}
             >
               {list.map((item, i) => {
                 const style =

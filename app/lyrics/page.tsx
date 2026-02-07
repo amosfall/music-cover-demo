@@ -76,7 +76,7 @@ export default function LyricsPage() {
     return (
       <div className="lyrics-gallery">
         {/* 顶部导航 */}
-        <header className="flex items-center justify-between px-6 pt-6 sm:px-10 sm:pt-8">
+        <header className="flex items-center justify-between px-4 pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-10 sm:pt-8">
           <TabNav />
           <button
             onClick={() => setShowAdd(true)}
@@ -98,6 +98,9 @@ export default function LyricsPage() {
           >
             「與　你　握　手」
           </motion.p>
+          <p className="mt-6 text-sm text-[var(--ink-muted)]" style={{ fontFamily: "Times New Roman, serif" }}>
+            By Aki，2026 春
+          </p>
         </div>
 
         {showAdd && (
@@ -114,7 +117,7 @@ export default function LyricsPage() {
   return (
     <div className="lyrics-gallery">
       {/* 顶部栏 */}
-      <header className="flex items-center justify-between px-6 pt-5 sm:px-10 sm:pt-7">
+      <header className="flex items-center justify-between px-4 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-10 sm:pt-7">
         <TabNav />
         <div className="flex items-center gap-2">
           {activeItem && (
@@ -146,7 +149,7 @@ export default function LyricsPage() {
       </header>
 
       {/* 左侧歌词 + 右侧专辑封面，整体居中 */}
-      <main className="flex flex-1 flex-col items-center justify-center gap-6 px-4 pb-28 md:flex-row md:gap-12 md:px-8">
+      <main className="flex flex-1 flex-col items-center justify-center gap-6 px-4 pb-[max(7rem,env(safe-area-inset-bottom)+5rem)] md:flex-row md:gap-12 md:px-8 md:pb-28">
         <div className="flex min-h-0 items-center justify-center md:max-w-[50%]">
           {activeItem && (
             <FloatingLyrics

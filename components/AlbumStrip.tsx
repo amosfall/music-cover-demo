@@ -73,13 +73,21 @@ function SortableStripItem({
       className={`group relative shrink-0 ${isActive ? "z-[100]" : ""}`}
       data-strip-id={item.id}
     >
-      <motion.button
+      <motion.div
+        role="button"
+        tabIndex={0}
         onClick={() => onSelect(item)}
-        className={`relative overflow-visible rounded-xl transition-shadow focus:outline-none ${
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onSelect(item);
+          }
+        }}
+        className={`relative overflow-visible rounded-xl transition-shadow focus:outline-none cursor-grab ${
           isActive
             ? "ring-2 ring-gray-800/40 shadow-lg"
             : "ring-1 ring-black/5 shadow-md hover:shadow-lg"
-        } ${isDragging ? "opacity-90 shadow-xl z-10" : ""}`}
+        } ${isDragging ? "opacity-90 shadow-xl z-10 cursor-grabbing" : ""}`}
         animate={{ scale: isActive ? 1.5 : 1 }}
         whileHover={isDragging ? undefined : { scale: isActive ? 1.5 : 1.06 }}
         transition={{ type: "spring", stiffness: 300, damping: 22 }}
@@ -95,19 +103,13 @@ function SortableStripItem({
             draggable={false}
           />
         </div>
-        {isActive && (
-          <motion.div
-            className="absolute -bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-gray-700"
-            layoutId="strip-dot"
-            transition={{ type: "spring", stiffness: 350, damping: 30 }}
-          />
-        )}
         {onDelete && (
           <div
             className="absolute -top-1 -right-1 z-10 p-1.5 group/delete"
             onPointerDown={(e) => e.stopPropagation()}
           >
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(item);
@@ -119,7 +121,7 @@ function SortableStripItem({
             </button>
           </div>
         )}
-      </motion.button>
+      </motion.div>
     </div>
   );
 }

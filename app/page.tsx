@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import AlbumGrid from "@/components/AlbumGrid";
 import PolaroidPoster from "@/components/PolaroidPoster";
@@ -86,15 +87,22 @@ export default function Home() {
     const update = () => {
       const w = container.clientWidth;
       const h = container.clientHeight;
-      if (w <= 0 || h <= 0) return;
       const posterW = 1080;
       const posterH = polaroidRatio === "1:1" ? 1080 : 810;
+      if (w <= 0 || h <= 0) {
+        setPolaroidScale(0.5);
+        return;
+      }
       setPolaroidScale(Math.max(0.2, Math.min(1, w / posterW, h / posterH)));
     };
     update();
+    const raf = requestAnimationFrame(() => update());
     const ro = new ResizeObserver(update);
     ro.observe(container);
-    return () => ro.disconnect();
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
   }, [showPolaroidModal, polaroidRatio]);
 
   const handleUploadSuccess = () => {
@@ -260,13 +268,18 @@ export default function Home() {
   const handleExportPolaroid = async () => {
     (document.activeElement as HTMLElement)?.blur();
     const node = document.getElementById("polaroid-export-container") as HTMLElement | null;
-    if (!node) return;
+    if (!node) {
+      setExportError("未找到导出区域，请重试");
+      return;
+    }
     setExportError(null);
     const originalStyle = node.style.cssText;
     try {
       node.style.width = "1080px";
       node.style.height = polaroidRatio === "1:1" ? "1080px" : "810px";
       node.style.transform = "none";
+      node.style.maxWidth = "none";
+      node.style.maxHeight = "none";
       if (isTransparent) {
         node.style.backgroundColor = "transparent";
         node.style.backgroundImage = "none";
@@ -274,7 +287,7 @@ export default function Home() {
         node.style.backgroundPosition = "";
       }
       await document.fonts.ready;
-      await new Promise((r) => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 400));
       const { toPng } = await import("html-to-image");
       const PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'%3E%3C/svg%3E";
       const dataUrl = await toPng(node, {
@@ -284,7 +297,6 @@ export default function Home() {
         type: "image/png",
         backgroundColor: isTransparent ? undefined : "#dcd7c9",
         imagePlaceholder: PLACEHOLDER,
-        filter: (n) => !(n instanceof HTMLElement && n.getAttribute?.("data-hide-on-export") != null),
       });
       setExportPreviewUrl(dataUrl);
       setExportPreviewFilename(`音乐浮墙-宝丽来-${polaroidRatio.replace(":", "x")}-${Date.now()}.png`);
@@ -297,9 +309,7 @@ export default function Home() {
       document.body.removeChild(link);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      const detail = err instanceof Error ? err.stack ?? msg : msg;
       console.error("Export polaroid failed:", msg, err);
-      if (detail) console.error("Detail:", detail);
       setExportError("导出失败，请稍后重试");
       alert(`导出失败：${msg || "未知错误"}。若使用网易云图片，请确保网络正常。`);
     } finally {
@@ -377,16 +387,16 @@ export default function Home() {
   }, [showSearchOverlay]);
 
   return (
-    <div className="mx-auto min-h-screen max-w-6xl px-4 py-6 pb-28 sm:px-6 sm:py-8">
+    <div className="mx-auto min-h-screen max-w-6xl px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(7rem,env(safe-area-inset-bottom)+5rem)] sm:px-6 sm:py-8 sm:pb-28">
       {/* Header：Noto Serif SC + 字间距，极简艺术感 */}
-      <header className="mb-12 text-center">
-        <h1 className="hero-title text-4xl text-[var(--ink)] sm:text-5xl">
+      <header className="mb-8 text-center sm:mb-12">
+        <h1 className="hero-title text-3xl text-[var(--ink)] sm:text-5xl">
           音乐浮墙
         </h1>
-        <p className="hero-subtitle mt-4 text-sm text-[var(--ink-muted)]">
+        <p className="hero-subtitle mt-3 text-sm text-[var(--ink-muted)] sm:mt-4">
           「找到自由，就找到歌声」
         </p>
-        <div className="mt-6 flex justify-center">
+        <div className="mt-4 flex justify-center sm:mt-6">
           <TabNav />
         </div>
       </header>
@@ -429,6 +439,12 @@ export default function Home() {
                 </div>
               )}
             </div>
+            <Link
+              href="/lyrics-wall?manage=1"
+              className="min-h-[44px] shrink-0 rounded-full border border-[var(--paper-dark)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--ink)] transition-colors hover:bg-[var(--paper-dark)]"
+            >
+              管理展示
+            </Link>
             <button
               type="button"
               onClick={handleClearExceptFirst}
@@ -569,7 +585,7 @@ export default function Home() {
           role="presentation"
         >
           <div
-            className="search-overlay-panel"
+            className="search-overlay-panel search-overlay-panel-mobile"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-label="添加网易云链接"
@@ -632,8 +648,8 @@ export default function Home() {
       )}
 
       {showPolaroidModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="relative flex h-[90vh] max-h-[90vh] w-full max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl bg-[var(--paper-dark)] shadow-xl sm:max-w-4xl sm:rounded-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="relative flex h-[85dvh] max-h-[90vh] w-full max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl bg-[var(--paper-dark)] shadow-xl sm:max-w-4xl sm:rounded-2xl">
             <button
               type="button"
               onClick={() => setShowPolaroidModal(false)}
@@ -662,7 +678,7 @@ export default function Home() {
               <div className="flex min-h-0 flex-1 gap-4 overflow-hidden">
                 <div
                   ref={polaroidPreviewRef}
-                  className="flex min-h-0 flex-1 justify-center overflow-hidden"
+                  className="flex min-h-[280px] min-w-0 flex-1 justify-center overflow-hidden"
                 >
                   <div
                     style={{
@@ -744,8 +760,8 @@ export default function Home() {
       )}
 
       {showExportPreview && exportPreviewUrl && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" onClick={() => { setShowExportPreview(false); setExportPreviewUrl(null); setExportPreviewFilename(""); }}>
-          <div className="relative max-h-[90vh] w-full max-w-[calc(100vw-2rem)] rounded-xl bg-white p-4 shadow-xl sm:max-w-lg sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]" onClick={() => { setShowExportPreview(false); setExportPreviewUrl(null); setExportPreviewFilename(""); }}>
+          <div className="relative max-h-[85dvh] w-full max-w-[calc(100vw-2rem)] rounded-xl bg-white p-4 shadow-xl sm:max-h-[90vh] sm:max-w-lg sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               onClick={() => { setShowExportPreview(false); setExportPreviewUrl(null); setExportPreviewFilename(""); }}
@@ -754,7 +770,7 @@ export default function Home() {
             >
               ×
             </button>
-            <img src={exportPreviewUrl} alt="导出预览" className="max-h-[80vh] w-full object-contain rounded-lg" draggable={false} />
+            <img src={exportPreviewUrl} alt="导出预览" className="max-h-[70dvh] w-full object-contain rounded-lg" draggable={false} />
             <p className="mt-3 text-center text-sm text-[var(--ink-muted)]">长按图片可保存到相册</p>
             <div className="mt-4 flex justify-center">
               <button

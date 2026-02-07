@@ -47,10 +47,10 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${notoSerifSC.variable} antialiased journal-page paper-texture min-h-screen flex flex-col`}
+        className={`${geistSans.variable} ${geistMono.variable} ${notoSerifSC.variable} antialiased journal-page paper-texture min-h-screen flex flex-col safe-area-padding`}
       >
-        <div className="flex-1">{children}</div>
-        <footer className="py-6 text-center text-xs italic text-[var(--ink-muted)] opacity-50">
+        <div className="flex-1 min-h-0">{children}</div>
+        <footer className="py-6 text-center text-xs italic text-[var(--ink-muted)] opacity-50 safe-area-bottom">
           Created by Aki
         </footer>
       </body>

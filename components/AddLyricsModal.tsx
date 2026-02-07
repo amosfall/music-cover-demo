@@ -211,11 +211,11 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
       onClick={onClose}
     >
       <div
-        className="scrapbook-card max-h-[90vh] w-full max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl p-6 shadow-xl sm:max-w-lg sm:rounded-2xl"
+        className="scrapbook-card max-h-[85dvh] w-full max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl p-6 shadow-xl sm:max-h-[90vh] sm:max-w-lg sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 标题 */}

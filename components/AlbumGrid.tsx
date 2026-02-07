@@ -156,11 +156,11 @@ export default function AlbumGrid({ categoryId }: AlbumGridProps) {
       {/* 专辑详情：当时导入的是哪一首歌 */}
       {selectedAlbum && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
           onClick={() => setSelectedAlbum(null)}
         >
           <div
-            className="relative max-h-[90vh] w-full max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl bg-white shadow-xl sm:max-w-sm sm:rounded-2xl"
+            className="relative max-h-[85dvh] w-full max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl bg-white shadow-xl sm:max-h-[90vh] sm:max-w-sm sm:rounded-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="relative aspect-square w-full overflow-hidden rounded-t-2xl bg-[var(--paper-dark)]">
