@@ -66,6 +66,8 @@ function SortableStripItem({
 
   const isActive = item.id === activeId;
 
+  const { role: _omitRole, tabIndex: _omitTabIndex, ...sortableAttributes } = attributes ?? {};
+
   return (
     <div
       ref={setNodeRef}
@@ -91,7 +93,7 @@ function SortableStripItem({
         animate={{ scale: isActive ? 1.5 : 1 }}
         whileHover={isDragging ? undefined : { scale: isActive ? 1.5 : 1.06 }}
         transition={{ type: "spring", stiffness: 300, damping: 22 }}
-        {...attributes}
+        {...sortableAttributes}
         {...listeners}
       >
         <div className="relative h-12 w-12 sm:h-20 sm:w-20 overflow-hidden rounded-xl">
