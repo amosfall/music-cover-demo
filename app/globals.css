@@ -250,14 +250,19 @@ body {
   pointer-events: auto;
 }
 
-/* 编辑态：无文本框 */
-.editable-lyric-line {
+/* 编辑态：无文本框，光标更显眼（块状光标 + 更大行高） */
+.editable-lyric-line,
+.editable-credit-line {
   outline: none;
   border: none;
   background: transparent;
+  caret-color: rgba(0, 0, 0, 0.75);
+  caret: block;
+  line-height: 2.2;
+  min-height: 1.5em;
 }
 
-/* 歌词墙选中后居中歌词块：一行一句、可滚动，大字+大行距+居中；整体略微上移保持视觉中心 */
+/* 歌词墙选中后居中歌词块：一行一句、可滚动，大字+大行距+居中；整体略微上移保持视觉中心；隐藏滚动条 */
 .lyrics-wall-center-block {
   -webkit-overflow-scrolling: touch;
   display: flex;
@@ -265,6 +270,11 @@ body {
   align-items: center;
   justify-content: center;
   text-align: center;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.lyrics-wall-center-block::-webkit-scrollbar {
+  display: none;
 }
 
 /* 单曲居中时整体上移，补偿底部专辑栏；多曲顶部排布不偏移 */
@@ -291,6 +301,31 @@ body {
 
 .lyrics-wall-center-block-multi > div {
   text-align: left;
+}
+
+/* 文字页居中块：无背景、无边框，仅浮字 */
+.mood-board-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+
+/* 文字页居中块：无背景、无边框，仅浮字 */
+.mood-board-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 /* 保留 .lyrics-text 用于弹窗预览等场景 */

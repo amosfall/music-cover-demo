@@ -1,0 +1,255 @@
+"use client";
+
+import { useState, useMemo, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import TabNav from "@/components/TabNav";
+
+/** 伪随机（seeded），保证同一 seed 同一序列 */
+function seededRandom(seed: number) {
+  let s = seed;
+  return () => {
+    s = (s * 16807 + 0) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+/** 以逗号、句号为分隔，拆成短句（每个短句一个散开块） */
+function parseSegments(str: string): string[] {
+  if (!str.trim()) return [];
+  return str
+    .split(/[，。]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/** 与诗的歌一致：行优先网格 + 随机字号与透明度 */
+const COL_GAP_PCT = 5;
+const VERTICAL_OFFSET_PCT = 4;
+
+type WordStyle = { top: string; left: string; fontSize: string; baseOpacity: number };
+
+function generateScatterLayout(count: number, cols: number, minFontRem: number): WordStyle[] {
+  const rand = seededRandom(99);
+  const paddingTop = 3;
+  const paddingBottom = 7;
+  const padding = 5;
+  const usableW = 100 - padding * 2;
+  const usableH = 100 - paddingTop - paddingBottom;
+  const numRows = Math.ceil(count / cols) || 1;
+  const rowStep = usableH / numRows;
+  const colWidth = (usableW - (cols - 1) * COL_GAP_PCT) / cols;
+  const styles: WordStyle[] = [];
+  let row = 0;
+  let col = 0;
+  for (let i = 0; i < count; i++) {
+    const cellCenterX = padding + col * (colWidth + COL_GAP_PCT) + colWidth / 2;
+    const cellCenterY = paddingTop + row * rowStep + rowStep / 2 - VERTICAL_OFFSET_PCT;
+    const jitterX = (rand() - 0.5) * (colWidth * 0.15);
+    const jitterY = (rand() - 0.5) * (rowStep * 0.2);
+    styles.push({
+      top: `${cellCenterY + jitterY}%`,
+      left: `${cellCenterX + jitterX}%`,
+      fontSize: `${minFontRem + rand() * 0.25}rem`,
+      baseOpacity: 0.35 + rand() * 0.45,
+    });
+    col += 1;
+    if (col >= cols) {
+      col = 0;
+      row += 1;
+    }
+  }
+  return styles;
+}
+
+const FONT_STYLE: React.CSSProperties = {
+  fontFamily: 'Georgia, "Noto Serif SC", "Source Han Serif SC", serif',
+};
+
+type Batch = { id: string; segments: string[]; fullText: string };
+
+export default function MoodBoardPage() {
+  const [text, setText] = useState("");
+  const [scattered, setScattered] = useState(false);
+  /** 每次散开添加一批，新内容与旧内容叠在一起 */
+  const [batches, setBatches] = useState<Batch[]>([]);
+  /** 点击某句后居中展示的整段话（该句所属的那批输入），null 表示未选中 */
+  const [selectedFullText, setSelectedFullText] = useState<string | null>(null);
+
+  const [cols, setCols] = useState(5);
+  const minFontRem = 0.9;
+  /** 所有批次展平为 { segment, fullText }，用于渲染与点击 */
+  const allItems = useMemo(
+    () =>
+      batches.flatMap((b) =>
+        b.segments.map((segment) => ({ segment, fullText: b.fullText }))
+      ),
+    [batches]
+  );
+  const scatterLayout = useMemo(
+    () =>
+      allItems.length > 0
+        ? generateScatterLayout(allItems.length, cols, minFontRem)
+        : [],
+    [allItems.length, cols]
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    const update = () => setCols(mq.matches ? 3 : 5);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  const hasContent = text.trim().length > 0;
+
+  const handleScatter = () => {
+    if (!hasContent) return;
+    const segments = parseSegments(text);
+    if (segments.length === 0) return;
+    setBatches((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), segments, fullText: text.trim() },
+    ]);
+    setText("");
+    setScattered(true);
+  };
+
+  const handleContinueInput = () => {
+    setScattered(false);
+    setText("");
+    setSelectedFullText(null);
+  };
+
+  const showInput = !scattered;
+  const showScatter = scattered && batches.length > 0;
+
+  return (
+    <div className="mood-board-page flex min-h-screen flex-col bg-[#fafafa]">
+      <header className="flex shrink-0 items-center justify-between gap-3 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-2 sm:px-10 sm:pt-7">
+        <TabNav />
+      </header>
+
+      <main className="flex flex-1 flex-col items-center px-4 py-6 sm:py-8">
+        <AnimatePresence mode="wait">
+          {showInput && (
+            <motion.div
+              key="input"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="w-full max-w-xl space-y-4"
+            >
+              <p className="text-center text-sm text-[var(--ink-muted)]">
+                写一段话，散成字块。用逗号、句号分隔的短句会分别散开。
+              </p>
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="输入一段话，用逗号或句号分隔…"
+                className="min-h-[160px] w-full resize-y rounded-xl border border-[var(--paper-dark)] bg-white px-4 py-3 text-[1.1rem] leading-relaxed text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+                style={FONT_STYLE}
+              />
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={handleScatter}
+                  disabled={!hasContent}
+                  className="rounded-full bg-[var(--accent)] px-6 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  散开
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {showScatter && (
+            <motion.div
+              key="scattered"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="relative h-[60vh] w-full max-w-4xl flex-1 sm:h-[65vh]"
+            >
+              {/* 散落的短句：多批次叠在一起；有选中时整体弱化 */}
+              {allItems.map((item, i) => {
+                const s = scatterLayout[i];
+                if (!s) return null;
+                const opacity = selectedFullText ? 0.12 : s.baseOpacity;
+                return (
+                  <motion.span
+                    key={`${i}-${item.segment}-${item.fullText.slice(0, 20)}`}
+                    role="button"
+                    tabIndex={0}
+                    className="mood-board-word absolute inline-block text-center will-change-transform cursor-pointer"
+                    style={{
+                      ...FONT_STYLE,
+                      top: s.top,
+                      left: s.left,
+                      fontSize: s.fontSize,
+                      opacity,
+                      transform: "translate(-50%, -50%)",
+                      color: "#2c2c2c",
+                    }}
+                    initial={{ opacity: 0, transform: "translate(-50%, -50%) scale(0.9)" }}
+                    animate={{ opacity, transform: "translate(-50%, -50%) scale(1)" }}
+                    transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedFullText(item.fullText);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedFullText(item.fullText);
+                      }
+                    }}
+                  >
+                    {item.segment}
+                  </motion.span>
+                );
+              })}
+
+              {/* 选中时：遮罩 + 居中整段话 */}
+              {selectedFullText != null && (
+                <motion.div
+                  className="absolute inset-0 flex items-center justify-center"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <div
+                    className="absolute inset-0 bg-[var(--ink)]/10"
+                    aria-hidden
+                    onClick={() => setSelectedFullText(null)}
+                  />
+                  <div
+                    className="relative z-10 max-w-[85%] max-h-[70%] overflow-y-auto px-6 py-8 text-left text-lg text-[var(--ink)] sm:text-xl leading-relaxed whitespace-pre-wrap"
+                    style={FONT_STYLE}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {selectedFullText}
+                  </div>
+                </motion.div>
+              )}
+
+              <div className="absolute bottom-0 left-0 right-0 flex justify-center gap-3 pb-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScattered(false);
+                    setText("");
+                    setSelectedFullText(null);
+                  }}
+                  className="rounded-full border border-[var(--paper-dark)] bg-white px-5 py-2 text-sm font-medium text-[var(--ink)] shadow-sm hover:bg-[var(--paper-dark)]/30"
+                >
+                  继续输入
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+    </div>
+  );
+}

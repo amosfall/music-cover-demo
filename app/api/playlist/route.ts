@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveNeteaseShareLink } from "@/lib/resolve-netease-share-link";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,8 +28,20 @@ export async function POST(request: NextRequest) {
 
     if (!playlistId && typeof body?.url === "string") {
       const url = body.url.trim();
-      const match = url.match(/playlist\?id=(\d+)/i) || url.match(/playlist\/(\d+)/i);
-      playlistId = match ? match[1] : null;
+      const host = (() => {
+        try {
+          return new URL(url).hostname.toLowerCase();
+        } catch {
+          return "";
+        }
+      })();
+      if (host === "163cn.tv" || host.endsWith(".163cn.tv")) {
+        playlistId = await resolveNeteaseShareLink(url);
+      }
+      if (!playlistId) {
+        const match = url.match(/playlist\?id=(\d+)/i) || url.match(/playlist\/(\d+)/i);
+        playlistId = match ? match[1] : null;
+      }
     }
 
     if (!playlistId) {

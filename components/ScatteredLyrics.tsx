@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, memo } from "react";
 import { motion } from "framer-motion";
 
 export type LyricFragment = {
@@ -14,6 +14,12 @@ export type LyricFragment = {
 
 type Props = {
   fragments: LyricFragment[];
+  /** 居中块编辑用完整歌词（展开时使用），为空则用 fragments 中高亮部分 */
+  centerBlockFragments?: LyricFragment[];
+  /** 居中块是否已展开完整歌词 */
+  centerBlockExpanded?: boolean;
+  /** 展开居中块完整歌词（双击编辑或点击添加区域时调用） */
+  onExpandCenterBlock?: () => void;
   highlightId: string | null; // 当前高亮的专辑 albumKey，选中时展示该专辑下多首歌
   /** 居中界面内显示哪首歌：null = 全部，否则只显示该 sourceId 的歌词 */
   centerSongId?: string | null;
@@ -25,6 +31,16 @@ type Props = {
   onRequestClose?: () => void;
   /** 双击某行歌词时编辑，保存后调用 */
   onEditLyric?: (sourceId: string, oldText: string, newText: string) => void | Promise<void>;
+  /** 批量删除多行（选中多行后按 Delete 时调用，用于即时反馈） */
+  onDeleteLyricLines?: (sourceId: string, texts: string[]) => void | Promise<void>;
+  /** 在最后一行下方点击时添加一行歌词 */
+  onAddLyric?: (sourceId: string) => void | Promise<void>;
+  /** 双击底部署名（艺人/专辑/歌名）时编辑，保存后调用 */
+  onEditCredit?: (
+    type: "artist" | "album" | "song",
+    newValue: string,
+    context: { albumKey: string; sourceId: string }
+  ) => void | Promise<void>;
 };
 
 /**
@@ -112,7 +128,8 @@ function EditableLyricLine({
   const commitEdit = useCallback(() => {
     const raw = editRef.current?.innerText ?? value;
     const trimmed = raw.trim();
-    if (trimmed && trimmed !== text && onEdit) {
+    const willCall = trimmed !== text && onEdit;
+    if (willCall) {
       onEdit(sourceId, text, trimmed);
     }
     setEditing(false);
@@ -152,6 +169,13 @@ function EditableLyricLine({
           background: "transparent",
         }}
         onBlur={commitEdit}
+        onInput={() => {
+          const next = editRef.current?.innerText ?? value;
+          setValue(next);
+          if (onEdit && next.trim() === "" && text.trim() !== "") {
+            commitEdit();
+          }
+        }}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
@@ -175,6 +199,7 @@ function EditableLyricLine({
       tabIndex={0}
       className={className}
       style={style}
+      {...(onEdit ? { dataLyricLine: "", dataSourceId: sourceId, dataLineText: text } : {})}
       onDoubleClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -198,12 +223,120 @@ function EditableLyricLine({
   );
 }
 
+/** 可双击编辑的署名字段（艺人/专辑/歌名） */
+function EditableCreditLine({
+  text,
+  type,
+  sourceId,
+  albumKey,
+  onEdit,
+  className,
+}: {
+  text: string;
+  type: "artist" | "album" | "song";
+  sourceId: string;
+  albumKey: string;
+  onEdit?: (
+    type: "artist" | "album" | "song",
+    newValue: string,
+    context: { albumKey: string; sourceId: string }
+  ) => void | Promise<void>;
+  className?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(text);
+  const editRef = useRef<HTMLSpanElement | null>(null);
+
+  const commitEdit = useCallback(() => {
+    const raw = editRef.current?.innerText ?? value;
+    const trimmed = raw.trim();
+    if (trimmed !== text && onEdit) {
+      onEdit(type, trimmed, { albumKey, sourceId });
+    }
+    setEditing(false);
+    setValue(text);
+  }, [value, text, type, albumKey, sourceId, onEdit]);
+
+  const cancelEdit = useCallback(() => {
+    setEditing(false);
+    setValue(text);
+  }, [text]);
+
+  useEffect(() => {
+    if (editing && editRef.current) {
+      editRef.current.innerText = value;
+      requestAnimationFrame(() => {
+        editRef.current?.focus();
+        const sel = window.getSelection();
+        if (sel) {
+          sel.selectAllChildren(editRef.current!);
+          sel.collapseToEnd();
+        }
+      });
+    }
+  }, [editing]);
+
+  if (editing) {
+    return (
+      <span
+        ref={(r) => { editRef.current = r; }}
+        contentEditable
+        suppressContentEditableWarning
+        className={`${className ?? ""} editable-credit-line`}
+        style={{ outline: "none", border: "none", background: "transparent" }}
+        onBlur={commitEdit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commitEdit();
+          }
+          if (e.key === "Escape") {
+            e.preventDefault();
+            cancelEdit();
+          }
+        }}
+        onClick={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      />
+    );
+  }
+
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      className={className}
+      onDoubleClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (onEdit) {
+          setValue(text);
+          setEditing(true);
+        }
+      }}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && onEdit) {
+          e.preventDefault();
+          setValue(text);
+          setEditing(true);
+        }
+      }}
+      title={onEdit ? "双击编辑" : undefined}
+    >
+      {text}
+    </span>
+  );
+}
+
 const CLICK_DELAY_MS = 280; // 延迟单击，双击时取消选择
 
-export default function ScatteredLyrics({ fragments, highlightId, centerSongId = null, onCenterSongChange, onFragmentClick, onRequestClose, onEditLyric }: Props) {
+function ScatteredLyrics({ fragments, centerBlockFragments = [], centerBlockExpanded = false, onExpandCenterBlock, highlightId, centerSongId = null, onCenterSongChange, onFragmentClick, onRequestClose, onEditLyric, onDeleteLyricLines, onEditCredit, onAddLyric }: Props) {
   const [cols, setCols] = useState(5);
   const [minFontRem, setMinFontRem] = useState(0.9);
   const pendingSelectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingCenterCloseRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const justBlurredFromClickRef = useRef(false);
 
   const clearPendingSelect = useCallback(() => {
     if (pendingSelectRef.current) {
@@ -212,6 +345,35 @@ export default function ScatteredLyrics({ fragments, highlightId, centerSongId =
     }
   }, []);
 
+  const clearPendingCenterClose = useCallback(() => {
+    if (pendingCenterCloseRef.current) {
+      clearTimeout(pendingCenterCloseRef.current);
+      pendingCenterCloseRef.current = null;
+    }
+  }, []);
+
+  const handleExpandCenterBlock = useCallback(() => {
+    clearPendingCenterClose();
+    onExpandCenterBlock?.();
+  }, [clearPendingCenterClose, onExpandCenterBlock]);
+
+  const scheduleCenterClose = useCallback(() => {
+    if (!onRequestClose) return;
+    clearPendingCenterClose();
+    pendingCenterCloseRef.current = setTimeout(() => {
+      pendingCenterCloseRef.current = null;
+      onRequestClose();
+    }, CLICK_DELAY_MS);
+  }, [onRequestClose, clearPendingCenterClose]);
+
+  useEffect(
+    () => () => {
+      if (pendingSelectRef.current) clearTimeout(pendingSelectRef.current);
+      if (pendingCenterCloseRef.current) clearTimeout(pendingCenterCloseRef.current);
+    },
+    []
+  );
+
   const highlightedFragments = useMemo(
     () => (highlightId ? fragments.filter((f) => f.albumKey === highlightId) : []),
     [fragments, highlightId]
@@ -219,13 +381,6 @@ export default function ScatteredLyrics({ fragments, highlightId, centerSongId =
   const dimmedFragments = useMemo(
     () => (highlightId ? fragments.filter((f) => f.albumKey !== highlightId) : fragments),
     [fragments, highlightId]
-  );
-
-  useEffect(
-    () => () => {
-      if (pendingSelectRef.current) clearTimeout(pendingSelectRef.current);
-    },
-    []
   );
 
   useEffect(() => {
@@ -280,6 +435,7 @@ export default function ScatteredLyrics({ fragments, highlightId, centerSongId =
               opacity,
               willChange: "transform",
               textAlign: "center",
+              zIndex: highlightId ? 1 : undefined,
             }}
             initial={{ transform: `translate(-50%, -50%) scale(1)` }}
             animate={{ transform: `translate(-50%, -50%) scale(1)` }}
@@ -324,34 +480,115 @@ export default function ScatteredLyrics({ fragments, highlightId, centerSongId =
         );
       })}
 
-      {/* 上层：选中时居中按「专辑内多首歌」分组排版；点击遮罩退出，点击内容不退出 */}
+      {/* 遮罩层 z-0：底下的散落歌词为 z-1 可点击编辑，居中块 z-10 在最上 */}
+      {hasCenterBlock && onRequestClose && (
+        <motion.div
+          className="absolute inset-0 z-0"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          aria-hidden
+          onMouseDown={(e) => {
+            const active = document.activeElement;
+            if (active?.getAttribute?.("contenteditable") === "true") {
+              (active as HTMLElement).blur();
+              justBlurredFromClickRef.current = true;
+            }
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (justBlurredFromClickRef.current) {
+              justBlurredFromClickRef.current = false;
+              return;
+            }
+            const active = document.activeElement;
+            if (active?.getAttribute?.("contenteditable") === "true") {
+              (active as HTMLElement).blur();
+            } else {
+              onRequestClose();
+            }
+          }}
+        />
+      )}
+      {/* 居中块 z-10：在遮罩和底层歌词之上 */}
       {hasCenterBlock && (
         <motion.div
-          className={`absolute inset-0 flex ${displayingMultiple ? "items-start justify-center" : "items-center justify-center"}`}
+          className={`absolute inset-0 z-10 flex ${displayingMultiple ? "items-start justify-center" : "items-center justify-center"}`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
         >
-          {/* 遮罩：点击界面外优先退出居中 */}
-          {onRequestClose && (
-            <div
-              className="absolute inset-0"
-              aria-hidden
-              onClick={(e) => {
-                e.stopPropagation();
-                onRequestClose();
-              }}
-            />
-          )}
           <div
-            className={`lyrics-wall-center-block relative z-10 max-h-[70%] max-w-[85%] overflow-y-auto overflow-x-hidden px-4 py-6 ${displayingMultiple ? "lyrics-wall-center-block-multi" : ""}`}
+            className={`lyrics-wall-center-block relative max-h-[70%] max-w-[85%] overflow-y-auto overflow-x-hidden px-4 py-6 ${displayingMultiple ? "lyrics-wall-center-block-multi" : ""}`}
             style={{ fontFamily: 'Georgia, "Noto Serif SC", "Source Han Serif SC", serif' }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (justBlurredFromClickRef.current) {
+                justBlurredFromClickRef.current = false;
+                return;
+              }
+              const active = document.activeElement;
+              if (active?.getAttribute?.("contenteditable") === "true") {
+                (active as HTMLElement).blur();
+              } else {
+                scheduleCenterClose();
+              }
+            }}
             onDoubleClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => {
+              const target = e.target as Node;
+              const active = document.activeElement;
+              if (active?.getAttribute?.("contenteditable") === "true" && !active.contains(target)) {
+                (active as HTMLElement).blur();
+                justBlurredFromClickRef.current = true;
+              }
+            }}
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key !== "Delete" && e.key !== "Backspace") return;
+              if (document.activeElement?.getAttribute?.("contenteditable") === "true") return;
+              const sel = window.getSelection();
+              if (!sel || sel.isCollapsed) return;
+              const range = sel.getRangeAt(0);
+              const container = e.currentTarget;
+              const lyricEls = container.querySelectorAll("[data-lyric-line]");
+              const toDelete: { sourceId: string; text: string }[] = [];
+              lyricEls.forEach((el) => {
+                if (!(el instanceof Element)) return;
+                const range2 = document.createRange();
+                range2.selectNodeContents(el);
+                if (range.intersectsNode(el)) {
+                  const sid = el.getAttribute("data-source-id");
+                  const txt = el.getAttribute("data-line-text");
+                  if (sid != null && txt != null && !toDelete.some((d) => d.sourceId === sid && d.text === txt)) {
+                    toDelete.push({ sourceId: sid, text: txt });
+                  }
+                }
+              });
+              if (toDelete.length > 0) {
+                e.preventDefault();
+                sel.removeAllRanges();
+                if (onDeleteLyricLines) {
+                  const bySource = new Map<string, string[]>();
+                  toDelete.forEach(({ sourceId, text }) => {
+                    const list = bySource.get(sourceId) ?? [];
+                    if (!list.includes(text)) list.push(text);
+                    bySource.set(sourceId, list);
+                  });
+                  bySource.forEach((texts, sid) => onDeleteLyricLines(sid, texts));
+                } else if (onEditLyric) {
+                  toDelete.forEach(({ sourceId, text }) => onEditLyric(sourceId, text, ""));
+                }
+              }
+            }}
           >
             {(() => {
+              const contentFragments =
+                centerBlockExpanded && centerBlockFragments.length > 0
+                  ? centerBlockFragments
+                  : highlightedFragments;
               const bySong = new Map<string, LyricFragment[]>();
-              for (const f of highlightedFragments) {
+              for (const f of contentFragments) {
                 const list = bySong.get(f.sourceId) ?? [];
                 list.push(f);
                 bySong.set(f.sourceId, list);
@@ -360,8 +597,8 @@ export default function ScatteredLyrics({ fragments, highlightId, centerSongId =
               const effectiveSongId = centerSongId ?? allSongGroups[0]?.[0] ?? null;
               const filteredFragments =
                 effectiveSongId != null
-                  ? highlightedFragments.filter((f) => f.sourceId === effectiveSongId)
-                  : highlightedFragments;
+                  ? contentFragments.filter((f) => f.sourceId === effectiveSongId)
+                  : contentFragments;
               const bySongFiltered = new Map<string, LyricFragment[]>();
               for (const f of filteredFragments) {
                 const list = bySongFiltered.get(f.sourceId) ?? [];
@@ -388,7 +625,7 @@ export default function ScatteredLyrics({ fragments, highlightId, centerSongId =
                       {lines.map((frag, i) => (
                         <div
                           key={`${frag.sourceId}-${i}`}
-                          className="scattered-fragment scattered-fragment-editable text-[var(--ink)] text-xl sm:text-2xl leading-loose cursor-text"
+                          className={`scattered-fragment scattered-fragment-editable text-[var(--ink)] text-xl sm:text-2xl leading-loose cursor-text flex items-center ${isMulti ? "justify-start" : "justify-center"}`}
                           style={{
                             whiteSpace: "normal",
                             maxWidth: "none",
@@ -400,25 +637,79 @@ export default function ScatteredLyrics({ fragments, highlightId, centerSongId =
                             text={frag.text}
                             sourceId={frag.sourceId}
                             onEdit={onEditLyric}
-                            className="inline-block min-w-[1em] rounded"
+                            onBeforeEdit={handleExpandCenterBlock}
+                            className={`inline-block min-w-[1em] rounded ${isMulti ? "" : "text-center"}`}
                           />
                         </div>
                       ))}
+                      {onAddLyric && (
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleExpandCenterBlock();
+                            onAddLyric(sourceId);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              handleExpandCenterBlock();
+                              onAddLyric(sourceId);
+                            }
+                          }}
+                          className="min-h-[1.75em] cursor-text rounded hover:bg-black/[0.03] focus:bg-black/[0.03] focus:outline-none"
+                          title="点击添加一行"
+                        />
+                      )}
                     </div>
                     );
                   })}
-                  {highlightedFragments.length > 0 && (() => {
-                    const first = highlightedFragments[0];
-                    const artistName = first.artistName?.trim();
-                    const albumName = first.albumName?.trim();
-                    const currentSongName = songGroups.length === 1 ? songGroups[0][1][0]?.songName?.trim() : null;
+                  {contentFragments.length > 0 && (() => {
+                    const first = contentFragments[0];
+                    const artistName = first.artistName?.trim() ?? "";
+                    const albumName = first.albumName?.trim() ?? "";
+                    const currentSongName = songGroups.length === 1 ? songGroups[0][1][0]?.songName?.trim() ?? "" : "";
+                    const albumKey = first.albumKey;
+                    const sourceId = songGroups.length === 1 ? songGroups[0][0] : first.sourceId;
                     if (!artistName && !albumName && !currentSongName) return null;
                     return (
-                      <div className="lyrics-wall-center-credit mt-4 text-base text-[var(--ink-muted)] space-y-1">
+                      <div className="lyrics-wall-center-credit mt-4 text-base text-[var(--ink-muted)] space-y-1 cursor-text">
                         <div>
-                          {[artistName, albumName].filter(Boolean).join(" - ")}
+                          {artistName ? (
+                            <EditableCreditLine
+                              text={artistName}
+                              type="artist"
+                              sourceId={sourceId}
+                              albumKey={albumKey}
+                              onEdit={onEditCredit}
+                              className="rounded px-0.5 -mx-0.5 hover:bg-black/5"
+                            />
+                          ) : null}
+                          {artistName && albumName && " - "}
+                          {albumName ? (
+                            <EditableCreditLine
+                              text={albumName}
+                              type="album"
+                              sourceId={sourceId}
+                              albumKey={albumKey}
+                              onEdit={onEditCredit}
+                              className="rounded px-0.5 -mx-0.5 hover:bg-black/5"
+                            />
+                          ) : null}
                         </div>
-                        {currentSongName && <div>{currentSongName}</div>}
+                        {currentSongName ? (
+                          <div>
+                            <EditableCreditLine
+                              text={currentSongName}
+                              type="song"
+                              sourceId={sourceId}
+                              albumKey={albumKey}
+                              onEdit={onEditCredit}
+                              className="rounded px-0.5 -mx-0.5 hover:bg-black/5"
+                            />
+                          </div>
+                        ) : null}
                       </div>
                     );
                   })()}
@@ -432,3 +723,5 @@ export default function ScatteredLyrics({ fragments, highlightId, centerSongId =
     </div>
   );
 }
+
+export default memo(ScatteredLyrics);

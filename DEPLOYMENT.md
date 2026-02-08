@@ -44,19 +44,13 @@ Vercel 不支持 SQLite，需使用 PostgreSQL。
 
 ---
 
-### 步骤 4：修改项目以支持云端
+### 步骤 4：同步生产数据库 Schema
 
-在**部署前**本地执行：
+项目已使用 PostgreSQL（`schema.prisma` 含 Category、AlbumCover、LyricsCard 及 userId 等字段）。部署前或首次部署后，用**生产库连接串**执行一次：
 
 ```bash
-# 1. 使用 PostgreSQL 的 schema
-cp prisma/schema.postgres.prisma prisma/schema.prisma
-
-# 2. 使用 PostgreSQL 的 Prisma 客户端
-cp lib/prisma.postgres.ts lib/prisma.ts
-
-# 3. 生成 Prisma 客户端并迁移（替换为你的 DATABASE_URL）
-DATABASE_URL="你的PostgreSQL连接串" npx prisma db push
+# 替换为 Vercel 环境变量中的 DATABASE_URL（Neon 请用 Pooled 连接串）
+DATABASE_URL="postgresql://用户:密码@ep-xxx-pooler.region.aws.neon.tech/neondb?sslmode=require" npx prisma db push
 ```
 
 ---

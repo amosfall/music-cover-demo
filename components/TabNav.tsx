@@ -8,6 +8,7 @@ import LyricsModal from "@/components/LyricsModal";
 const tabs = [
   { href: "/albums", label: "歌" },
   { href: "/lyrics-wall", label: "诗的歌" },
+  { href: "/mood-board", label: "说明" },
 ];
 
 export default function TabNav() {
