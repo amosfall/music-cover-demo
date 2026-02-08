@@ -60,8 +60,22 @@ export default function RootLayout({
         >
           <header className="flex justify-end items-center shrink-0 gap-3 px-4 py-2 min-h-[2.5rem]">
             <SignedOut>
-              <SignInButton mode="redirect" signInUrl="/sign-in" />
-              <SignUpButton mode="redirect" signUpUrl="/sign-up" />
+              <SignInButton mode="redirect">
+                <button
+                  type="button"
+                  className="rounded-md border border-[var(--paper-dark)] bg-white px-3 py-1.5 text-sm font-medium text-[var(--ink)] hover:bg-[var(--paper-dark)]/30"
+                >
+                  登录
+                </button>
+              </SignInButton>
+              <SignUpButton mode="redirect">
+                <button
+                  type="button"
+                  className="rounded-md border border-[var(--paper-dark)] bg-white px-3 py-1.5 text-sm font-medium text-[var(--ink)] hover:bg-[var(--paper-dark)]/30"
+                >
+                  注册
+                </button>
+              </SignUpButton>
             </SignedOut>
             <SignedIn>
               <UserMenu />
