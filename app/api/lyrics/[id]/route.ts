@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withDbRetry } from "@/lib/db";
+import { getUserIdOr401 } from "@/lib/auth";
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await getUserIdOr401();
+  if (authResult instanceof NextResponse) return authResult;
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -32,7 +36,7 @@ export async function PUT(
 
     const item = await withDbRetry(() =>
       prisma.lyricsCard.update({
-        where: { id },
+        where: { id, userId: authResult.userId },
         data: updateData as Parameters<typeof prisma.lyricsCard.update>[0]["data"],
       })
     );
@@ -48,10 +52,13 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await getUserIdOr401();
+  if (authResult instanceof NextResponse) return authResult;
+
   try {
     const { id } = await params;
     await withDbRetry(() =>
-      prisma.lyricsCard.delete({ where: { id } })
+      prisma.lyricsCard.delete({ where: { id, userId: authResult.userId } })
     );
     return NextResponse.json({ success: true });
   } catch (error) {

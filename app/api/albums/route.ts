@@ -1,24 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withDbRetry } from "@/lib/db";
+import { getUserIdOrNull, getUserIdOr401 } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
+    const userId = await getUserIdOrNull();
+    const userFilter = userId ? { userId } : { userId: null };
+
     const { searchParams } = new URL(request.url);
     const categoryId = searchParams.get("categoryId");
 
     const items = await withDbRetry(async () => {
-      let where: { categoryId?: string | null; OR?: { categoryId: string | null }[] } = {};
+      let where: Record<string, unknown> = { ...userFilter };
       if (categoryId && categoryId !== "all") {
         const defaultCat = await prisma.category.findFirst({
-          where: { name: "Default" },
+          where: { name: "Default", ...userFilter },
         });
         if (defaultCat && categoryId === defaultCat.id) {
-          where = { OR: [{ categoryId: categoryId }, { categoryId: null }] };
+          where = { ...userFilter, OR: [{ categoryId: categoryId }, { categoryId: null }] };
         } else {
-          where = { categoryId };
+          where = { ...userFilter, categoryId };
         }
       }
       return prisma.albumCover.findMany({
@@ -37,6 +41,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const authResult = await getUserIdOr401();
+  if (authResult instanceof NextResponse) return authResult;
+
   try {
     const body = await request.json();
     const { imageUrl, albumName, artistName, releaseYear, genre, notes, categoryId } = body;
@@ -58,6 +65,7 @@ export async function POST(request: NextRequest) {
           genre: genre ?? null,
           notes: notes ?? null,
           categoryId: categoryId || null,
+          userId: authResult.userId,
         },
       })
     );

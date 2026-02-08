@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withDbRetry } from "@/lib/db";
+import { getUserIdOr401 } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await getUserIdOr401();
+  if (authResult instanceof NextResponse) return authResult;
+
   try {
     const { id } = await params;
     let body: { showOnLyricsWall?: unknown };
@@ -30,7 +34,7 @@ export async function PATCH(
     }
     const updated = await withDbRetry(() =>
       prisma.albumCover.update({
-        where: { id },
+        where: { id, userId: authResult.userId },
         data: { showOnLyricsWall },
       })
     );

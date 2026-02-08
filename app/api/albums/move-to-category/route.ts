@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withDbRetry } from "@/lib/db";
+import { getUserIdOr401 } from "@/lib/auth";
 
 /** 批量将专辑移入目标分类 */
 export async function POST(request: NextRequest) {
+  const authResult = await getUserIdOr401();
+  if (authResult instanceof NextResponse) return authResult;
+
   try {
     const body = await request.json();
     const { albumIds, targetCategoryId } = body as {
@@ -19,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     const result = await withDbRetry(async () => {
       const updated = await prisma.albumCover.updateMany({
-        where: { id: { in: albumIds } },
+        where: { id: { in: albumIds }, userId: authResult.userId },
         data: { categoryId: targetCategoryId },
       });
       return updated;

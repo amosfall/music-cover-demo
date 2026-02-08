@@ -5,6 +5,7 @@ import {
   fetchNeteaseLyrics,
   getFirstTrackFromAlbum,
 } from "@/lib/netease-lyrics";
+import { getUserIdOr401 } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,9 @@ export const dynamic = "force-dynamic";
  * 需要配置 NETEASE_API_URL。
  */
 export async function POST() {
+  const authResult = await getUserIdOr401();
+  if (authResult instanceof NextResponse) return authResult;
+
   const apiBase = process.env.NETEASE_API_URL?.trim();
   if (!apiBase) {
     return NextResponse.json(
@@ -27,6 +31,7 @@ export async function POST() {
     const bySong = await withDbRetry(() =>
       prisma.albumCover.findMany({
         where: {
+          userId: authResult.userId,
           lyrics: null,
           songId: { not: null },
         },
@@ -42,7 +47,7 @@ export async function POST() {
       if (!lyrics) continue;
       await withDbRetry(() =>
         prisma.albumCover.update({
-          where: { id: row.id },
+          where: { id: row.id, userId: authResult.userId },
           data: { lyrics },
         })
       );
@@ -53,6 +58,7 @@ export async function POST() {
     const byAlbum = await withDbRetry(() =>
       prisma.albumCover.findMany({
         where: {
+          userId: authResult.userId,
           lyrics: null,
           albumId: { not: null },
         },
@@ -70,7 +76,7 @@ export async function POST() {
       if (!lyrics) continue;
       await withDbRetry(() =>
         prisma.albumCover.update({
-          where: { id: row.id },
+          where: { id: row.id, userId: authResult.userId },
           data: {
             lyrics,
             songId: track.songId,

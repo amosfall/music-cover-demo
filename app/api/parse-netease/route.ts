@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { saveImage, isVercel, hasBlobToken } from "@/lib/storage";
 import { isDbConnectionError, withDbRetry } from "@/lib/db";
 import { fetchNeteaseLyrics } from "@/lib/netease-lyrics";
+import { getUserIdOr401 } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -206,6 +207,9 @@ async function downloadAndSaveCover(picUrl: string): Promise<string> {
 }
 
 export async function POST(request: NextRequest) {
+  const authResult = await getUserIdOr401();
+  if (authResult instanceof NextResponse) return authResult;
+
   try {
     const body = await request.json();
     const rawInput = body?.url?.trim();
@@ -293,6 +297,7 @@ export async function POST(request: NextRequest) {
           genre: null,
           notes: null,
           categoryId: categoryId || null,
+          userId: authResult.userId,
         },
       })
     );

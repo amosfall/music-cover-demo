@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withDbRetry } from "@/lib/db";
+import { getUserIdOrNull, getUserIdOr401 } from "@/lib/auth";
 
 const DEFAULT_CATEGORY_NAME = "Default";
 const DEMO_CATEGORIES = [
@@ -8,19 +9,25 @@ const DEMO_CATEGORIES = [
   { name: "Pink Floyd", sortOrder: 2 },
 ];
 
-/** Ensure default + demo categories exist (idempotent) */
-async function ensureCategories() {
-  const existing = await prisma.category.findMany();
+/** Ensure default + demo categories exist for user (idempotent) */
+async function ensureCategoriesForUser(userId: string) {
+  const existing = await prisma.category.findMany({
+    where: { userId },
+    orderBy: { sortOrder: "asc" },
+  });
   if (existing.length > 0) return existing;
 
   const toCreate = [
-    { name: DEFAULT_CATEGORY_NAME, sortOrder: 0 },
-    ...DEMO_CATEGORIES,
+    { name: DEFAULT_CATEGORY_NAME, sortOrder: 0, userId },
+    ...DEMO_CATEGORIES.map((c) => ({ ...c, userId })),
   ];
   for (const c of toCreate) {
     await prisma.category.create({ data: c });
   }
-  return prisma.category.findMany({ orderBy: { sortOrder: "asc" } });
+  return prisma.category.findMany({
+    where: { userId },
+    orderBy: { sortOrder: "asc" },
+  });
 }
 
 const FALLBACK_LIST = [
@@ -28,19 +35,23 @@ const FALLBACK_LIST = [
 ];
 
 export async function GET() {
+  const userId = await getUserIdOrNull();
+  const userFilter = userId ? { userId } : { userId: null };
+
   try {
     const categories = await withDbRetry(async () => {
       const list = await prisma.category.findMany({
+        where: userFilter,
         orderBy: { sortOrder: "asc" },
       });
-      if (list.length === 0) {
-        return ensureCategories();
+      if (list.length === 0 && userId) {
+        return ensureCategoriesForUser(userId);
       }
       return list;
     });
     return NextResponse.json(categories);
   } catch (error) {
-    console.error("Failed to fetch categories:", error);
+    console.error("[categories GET] Failed:", error);
     return NextResponse.json(
       { error: "获取分类失败", fallback: true, list: FALLBACK_LIST },
       { status: 200 }
@@ -49,6 +60,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const authResult = await getUserIdOr401();
+  if (authResult instanceof NextResponse) return authResult;
+
   try {
     const body = await request.json();
     const name = (body?.name as string)?.trim();
@@ -60,7 +74,7 @@ export async function POST(request: NextRequest) {
     }
 
     const maxOrder = await prisma.category
-      .aggregate({ _max: { sortOrder: true } })
+      .aggregate({ _max: { sortOrder: true }, where: { userId: authResult.userId } })
       .then((r) => r._max.sortOrder ?? -1);
 
     const category = await withDbRetry(() =>
@@ -68,6 +82,7 @@ export async function POST(request: NextRequest) {
         data: {
           name,
           sortOrder: maxOrder + 1,
+          userId: authResult.userId,
         },
       })
     );

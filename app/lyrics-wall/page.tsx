@@ -60,7 +60,7 @@ function saveStripOrder(ids: string[]) {
 }
 
 function LyricsWallContent() {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, isLoaded } = useAuth();
   const [showWelcome, setShowWelcome] = useState(true);
   const [items, setItems] = useState<WallItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,11 +106,13 @@ function LyricsWallContent() {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    if (isLoaded) {
+      fetchData();
+    }
     return () => {
       abortRef.current?.abort();
     };
-  }, [fetchData]);
+  }, [fetchData, isLoaded]);
 
   // 过滤元信息行：作词/作曲/编曲/制作人员等，不展示在歌词墙
   const metaRegexCn =

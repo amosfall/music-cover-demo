@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withDbRetry, isDbConnectionError } from "@/lib/db";
+import { getUserIdOr401, getUserIdOrNull } from "@/lib/auth";
 
 export async function GET() {
   try {
+    const userId = await getUserIdOrNull();
+    const userFilter = userId ? { userId } : { userId: null };
     const items = await withDbRetry(() =>
       prisma.lyricsCard.findMany({
+        where: userFilter,
         orderBy: { createdAt: "desc" },
       })
     );
@@ -20,6 +24,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const authResult = await getUserIdOr401();
+  if (authResult instanceof NextResponse) return authResult;
+
   try {
     const body = await request.json();
     const { lyrics, albumName, artistName, imageUrl, songName } = body;
@@ -39,6 +46,7 @@ export async function POST(request: NextRequest) {
           artistName: artistName?.trim() || null,
           imageUrl: imageUrl.trim(),
           songName: songName?.trim() || null,
+          userId: authResult.userId,
         },
       })
     );

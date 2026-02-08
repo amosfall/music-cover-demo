@@ -13,6 +13,8 @@ model Category {
   id        String   @id @default(cuid())
   name      String
   sortOrder Int      @default(0)
+  /** Clerk 用户 ID，多用户数据隔离 */
+  userId    String?
   createdAt DateTime @default(now())
   albums    AlbumCover[]
 }
@@ -32,6 +34,8 @@ model AlbumCover {
   albumId    String?
   /** 是否在歌词墙展示，未勾选的不上墙 */
   showOnLyricsWall Boolean @default(true)
+  /** Clerk 用户 ID，多用户数据隔离 */
+  userId     String?
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   createdAt  DateTime  @default(now())
@@ -47,6 +51,8 @@ model LyricsCard {
   songName   String?
   /** 是否在歌词墙展示，未勾选的不上墙 */
   showOnLyricsWall Boolean @default(true)
+  /** Clerk 用户 ID，多用户数据隔离 */
+  userId     String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }

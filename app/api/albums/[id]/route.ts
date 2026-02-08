@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withDbRetry } from "@/lib/db";
+import { getUserIdOrNull, getUserIdOr401 } from "@/lib/auth";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const userId = await getUserIdOrNull();
+  const userFilter = userId ? { userId } : { userId: null };
+
   try {
     const { id } = await params;
-    const item = await prisma.albumCover.findUnique({ where: { id } });
+    const item = await prisma.albumCover.findFirst({ where: { id, ...userFilter } });
     if (!item) {
       return NextResponse.json({ error: "未找到" }, { status: 404 });
     }
@@ -23,6 +27,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await getUserIdOr401();
+  if (authResult instanceof NextResponse) return authResult;
+
   const { id } = await params;
   let body: Record<string, unknown> = {};
   try {
@@ -50,7 +57,7 @@ export async function PUT(
 
     const item = await withDbRetry(() =>
       prisma.albumCover.update({
-        where: { id },
+        where: { id, userId: authResult.userId },
         data: updateData as Parameters<typeof prisma.albumCover.update>[0]["data"],
       })
     );
@@ -67,9 +74,12 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await getUserIdOr401();
+  if (authResult instanceof NextResponse) return authResult;
+
   try {
     const { id } = await params;
-    await prisma.albumCover.delete({ where: { id } });
+    await prisma.albumCover.delete({ where: { id, userId: authResult.userId } });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to delete album:", error);

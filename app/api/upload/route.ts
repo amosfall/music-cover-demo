@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { saveImage, isVercel, hasBlobToken } from "@/lib/storage";
+import { getUserIdOr401 } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+  const authResult = await getUserIdOr401();
+  if (authResult instanceof NextResponse) return authResult;
+
   // 在 Vercel 上必须有 Blob 存储才能上传文件
   if (isVercel && !hasBlobToken) {
     return NextResponse.json(

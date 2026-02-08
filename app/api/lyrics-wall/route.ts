@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withDbRetry } from "@/lib/db";
+import { getUserIdOrNull } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -17,18 +18,21 @@ export type WallItem = {
 };
 
 export async function GET() {
+  const userId = await getUserIdOrNull();
+  // 未登录时展示默认数据（userId 为 null 的旧数据）；已登录时只展示当前用户数据
+  const userFilter = userId ? { userId } : { userId: null };
+
   try {
-    // 从 AlbumCover 取有歌词的条目
     const albums = await withDbRetry(() =>
       prisma.albumCover.findMany({
-        where: { lyrics: { not: null } },
+        where: { lyrics: { not: null }, ...userFilter },
         orderBy: { createdAt: "desc" },
       })
     );
 
-    // 从 LyricsCard 取所有条目
     const cards = await withDbRetry(() =>
       prisma.lyricsCard.findMany({
+        where: userFilter,
         orderBy: { createdAt: "desc" },
       })
     );

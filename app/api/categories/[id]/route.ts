@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withDbRetry } from "@/lib/db";
+import { getUserIdOr401 } from "@/lib/auth";
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await getUserIdOr401();
+  if (authResult instanceof NextResponse) return authResult;
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -18,7 +22,7 @@ export async function PATCH(
     }
     const category = await withDbRetry(() =>
       prisma.category.update({
-        where: { id },
+        where: { id, userId: authResult.userId },
         data: { name },
       })
     );
@@ -36,16 +40,19 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await getUserIdOr401();
+  if (authResult instanceof NextResponse) return authResult;
+
   try {
     const { id } = await params;
 
     await withDbRetry(async () => {
       await prisma.albumCover.updateMany({
-        where: { categoryId: id },
+        where: { categoryId: id, userId: authResult.userId },
         data: { categoryId: null },
       });
       await prisma.category.delete({
-        where: { id },
+        where: { id, userId: authResult.userId },
       });
     });
 

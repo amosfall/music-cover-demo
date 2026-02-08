@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withDbRetry } from "@/lib/db";
 import { fetchNeteaseLyrics } from "@/lib/netease-lyrics";
+import { getUserIdOr401 } from "@/lib/auth";
 
 export const maxDuration = 60;
 
@@ -16,6 +17,9 @@ type AlbumInput = {
 };
 
 export async function POST(request: NextRequest) {
+  const authResult = await getUserIdOr401();
+  if (authResult instanceof NextResponse) return authResult;
+
   try {
     const body = await request.json();
     const albums = body?.albums;
@@ -53,6 +57,7 @@ export async function POST(request: NextRequest) {
             songName: songName || null,
             lyrics,
             categoryId: categoryId || null,
+            userId: authResult.userId,
           },
         })
       );
