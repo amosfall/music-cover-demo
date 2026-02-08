@@ -70,6 +70,8 @@ DATABASE_URL="你的PostgreSQL连接串" npx prisma db push
 | `DATABASE_URL` | `postgresql://...` | Postgres 连接串 |
 | `BLOB_READ_WRITE_TOKEN` | 自动 | Vercel Blob 创建后自动注入 |
 | `NETEASE_API_URL` | `https://xxx.railway.app` | 步骤 3 的 Railway 地址 |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | `pk_...` | Clerk 公钥，[Dashboard → API Keys](https://dashboard.clerk.com) 复制 |
+| `CLERK_SECRET_KEY` | `sk_...` | Clerk 密钥，同上。**必填**，否则生产构建会失败 |
 
 ---
 
@@ -145,6 +147,7 @@ Railway 可同时运行 Next.js 和 PostgreSQL，无需拆分服务。
 | **歌词墙一直「还没有歌词数据」** | 歌词墙数据来自：① 封面页通过链接抓取的**单曲**（带歌词）；② 歌词页手动添加的卡片。两者都没有则为空。 | 在封面页用底部胶囊粘贴网易云**单曲**链接抓取，或在「歌词」页点击「添加歌词」手动添加一条。 |
 | **粘贴链接后添加失败 / 超时** | 未配置 `NETEASE_API_URL` 或自建网易云 API 未启动、被墙或限流。 | 在 Vercel 环境变量中配置 `NETEASE_API_URL` 指向自建 API（如 Railway 部署的 NeteaseCloudMusicApi）。可访问 `/api/check-netease` 做连通性检查。 |
 | **图片不显示 / 上传失败** | 未配置 `BLOB_READ_WRITE_TOKEN` 或 Blob 未正确绑定项目。 | 在 Vercel → Storage → Blob 创建 Store 并绑定到项目，确保环境变量中有 `BLOB_READ_WRITE_TOKEN`。 |
+| **构建失败：Missing publishableKey / [Clerk] 生产构建需要配置 Clerk 密钥** | 未配置 Clerk 环境变量，生产预渲染会报错。 | 在 Vercel → Settings → Environment Variables 添加 `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` 和 `CLERK_SECRET_KEY`（从 [Clerk Dashboard](https://dashboard.clerk.com) API Keys 复制），保存后 Redeploy。 |
 
 ---
 
@@ -161,6 +164,8 @@ Railway 可同时运行 Next.js 和 PostgreSQL，无需拆分服务。
 | **DATABASE_URL** | 数据库连接串 | Neon 控制台 → Connection string → 选 **Pooled**（主机名带 `-pooler`），复制整串。**不要用直连串**，否则易出现「Connection terminated」。 |
 | **NETEASE_API_URL** | 网易云 API 地址 | Railway 部署的 NeteaseCloudMusicApi 公网 URL，如 `https://xxx-production.up.railway.app`，**不要末尾斜杠**。 |
 | **BLOB_READ_WRITE_TOKEN** | 图片存储 | Vercel 项目 → Storage → 创建 **Blob** Store 并连接项目后自动注入。 |
+| **NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY** | Clerk 登录公钥 | [Clerk Dashboard](https://dashboard.clerk.com) → 你的应用 → API Keys，复制 Publishable key。未配置会导致**构建失败**。 |
+| **CLERK_SECRET_KEY** | Clerk 登录密钥 | 同上，复制 Secret key。 |
 
 修改环境变量后必须 **Redeploy** 一次（Deployments → 最新部署右侧 ⋮ → Redeploy），否则不生效。
 

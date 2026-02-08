@@ -38,13 +38,22 @@ export const viewport = {
   viewportFit: "cover",
 };
 
+// 显式读取环境变量；Vercel/生产构建必须配置，否则预渲染会报 Missing publishableKey
+const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+if (process.env.NODE_ENV === "production" && !publishableKey?.trim()) {
+  const hint = process.env.VERCEL
+    ? "请在 Vercel 项目 Settings → Environment Variables 中添加 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY 和 CLERK_SECRET_KEY（从 https://dashboard.clerk.com 获取）。"
+    : "请在 .env.local 或部署环境中设置 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY 和 CLERK_SECRET_KEY。";
+  throw new Error(`[Clerk] 生产构建需要配置 Clerk 密钥。${hint}`);
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <ClerkProvider publishableKey={publishableKey ?? undefined}>
       <html lang="zh-CN">
         <head>
           <meta name="referrer" content="no-referrer" />
