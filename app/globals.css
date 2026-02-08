@@ -315,7 +315,8 @@ body {
 }
 
 .tab-nav a,
-.tab-nav button {
+.tab-nav button,
+.tab-nav-btn {
   padding: 0.5rem 1.35rem;
   min-height: 44px;
   min-width: 44px;
@@ -340,7 +341,8 @@ body {
     justify-content: space-around;
   }
   .tab-nav a,
-  .tab-nav button {
+  .tab-nav button,
+  .tab-nav-btn {
     padding: 0.4rem 0.9rem;
     font-size: 0.8125rem;
   }
@@ -351,13 +353,15 @@ body {
 }
 
 .tab-nav a:hover,
-.tab-nav button:hover {
+.tab-nav button:hover,
+.tab-nav-btn:hover {
   color: var(--ink);
   background: rgba(0, 0, 0, 0.03);
 }
 
 .tab-nav a.active,
-.tab-nav button.active {
+.tab-nav button.active,
+.tab-nav-btn.active {
   background: rgba(0, 0, 0, 0.08);
   color: var(--ink);
   font-weight: 600;

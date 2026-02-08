@@ -79,11 +79,11 @@ export default function UserMenu() {
   };
 
   return (
-    <div className="relative flex items-center" ref={menuRef}>
+    <div className="relative flex items-center tab-nav" ref={menuRef}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-md py-1 pr-1 text-sm text-[var(--ink)] hover:bg-[var(--paper-dark)]/30"
+        className={`tab-nav-btn flex items-center gap-2 ${open ? "active" : ""}`}
         aria-expanded={open}
         aria-haspopup="true"
       >
@@ -91,7 +91,7 @@ export default function UserMenu() {
           <img
             src={user.imageUrl}
             alt=""
-            className="h-7 w-7 shrink-0 rounded-full object-cover"
+            className="h-6 w-6 shrink-0 rounded-full object-cover"
             referrerPolicy="no-referrer"
           />
         ) : null}

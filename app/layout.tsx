@@ -5,8 +5,8 @@ import {
   SignUpButton,
   SignedIn,
   SignedOut,
+  UserButton,
 } from "@clerk/nextjs";
-import UserMenu from "@/components/UserMenu";
 import { Geist, Geist_Mono, Noto_Serif_SC } from "next/font/google";
 import "./globals.css";
 
@@ -72,7 +72,7 @@ export default function RootLayout({
               <SignInButton mode="redirect">
                 <button
                   type="button"
-                  className="rounded-md border border-[var(--paper-dark)] bg-white px-3 py-1.5 text-sm font-medium text-[var(--ink)] hover:bg-[var(--paper-dark)]/30"
+                  className="tab-nav-btn"
                 >
                   登录
                 </button>
@@ -80,14 +80,21 @@ export default function RootLayout({
               <SignUpButton mode="redirect">
                 <button
                   type="button"
-                  className="rounded-md border border-[var(--paper-dark)] bg-white px-3 py-1.5 text-sm font-medium text-[var(--ink)] hover:bg-[var(--paper-dark)]/30"
+                  className="tab-nav-btn"
                 >
                   注册
                 </button>
               </SignUpButton>
             </SignedOut>
             <SignedIn>
-              <UserMenu />
+              <UserButton
+                afterSignOutUrl="/"
+                appearance={{
+                  elements: {
+                    avatarBox: "h-8 w-8 sm:h-9 sm:w-9",
+                  },
+                }}
+              />
             </SignedIn>
           </header>
           <div className="flex-1 min-h-0">{children}</div>
