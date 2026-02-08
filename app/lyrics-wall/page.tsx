@@ -441,43 +441,48 @@ function LyricsWallContent() {
     );
   }
 
+  /** 歌词居中沉浸模式：点击某行后 highlightId 有值，隐藏顶部导航与管理展示 */
+  const isImmersive = highlightId !== null;
+
   // ── 正常态 ──
   return (
     <div className="lyrics-gallery relative" onClick={handleClickBackground}>
-      {/* 顶部 */}
-      <header
-        className="relative z-10 flex items-center justify-between gap-3 px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-2 sm:px-10 sm:pt-7"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <TabNav />
-        {/* 绝对居中：仅首次打开显示，点击任一行歌词后消失且不再出现 */}
-        {!hintDismissed && (
-          <div
-            className="absolute left-1/2 top-1/2 z-0 max-w-max -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-            aria-hidden
-          >
-            <p
-              className="text-center text-base text-[var(--ink-muted)] opacity-40 sm:text-lg"
-              style={{ fontFamily: 'SimSun, "宋体", "Songti SC", serif' }}
-            >
-              试着点一行歌词吧
-            </p>
-          </div>
-        )}
-        <button
-          type="button"
-          onClick={() => {
-            if (!isSignedIn) {
-              router.push("/sign-in");
-              return;
-            }
-            setShowManageModal(true);
-          }}
-          className="shrink-0 rounded-full border border-[var(--paper-dark)] bg-white px-4 py-2 text-sm font-medium text-[var(--ink)] hover:bg-[var(--paper-dark)]"
+      {/* 顶部：歌词居中时隐藏，做成沉浸效果 */}
+      {!isImmersive && (
+        <header
+          className="relative z-10 flex items-center justify-between gap-2 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-2 sm:gap-3 sm:px-10 sm:pt-7"
+          onClick={(e) => e.stopPropagation()}
         >
-          管理展示
-        </button>
-      </header>
+          <TabNav />
+          {/* 绝对居中：仅首次打开显示，点击任一行歌词后消失且不再出现 */}
+          {!hintDismissed && (
+            <div
+              className="absolute left-1/2 top-1/2 z-0 max-w-max -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+              aria-hidden
+            >
+              <p
+                className="text-center text-base text-[var(--ink-muted)] opacity-40 sm:text-lg"
+                style={{ fontFamily: 'SimSun, "宋体", "Songti SC", serif' }}
+              >
+                试着点一行歌词吧
+              </p>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              if (!isSignedIn) {
+                router.push("/sign-in");
+                return;
+              }
+              setShowManageModal(true);
+            }}
+            className="shrink-0 rounded-full border border-[var(--paper-dark)] bg-white px-3 py-1.5 text-xs font-medium text-[var(--ink)] hover:bg-[var(--paper-dark)] sm:px-4 sm:py-2 sm:text-sm"
+          >
+            管理展示
+          </button>
+        </header>
+      )}
 
       {/* 散乱漂浮歌词：点击某行可选中对应专辑、唤起居中展示 */}
       <ScatteredLyrics

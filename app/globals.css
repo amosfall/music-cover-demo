@@ -335,20 +335,19 @@ body {
   font-family: inherit;
 }
 
+/* 移动端：保持紧凑，避免「歌/诗的歌」按钮过大 */
 @media (max-width: 640px) {
   .tab-nav {
-    width: 100%;
-    justify-content: space-around;
+    padding: 0.2rem;
+    gap: 0.15rem;
   }
   .tab-nav a,
   .tab-nav button,
   .tab-nav-btn {
-    padding: 0.4rem 0.9rem;
-    font-size: 0.8125rem;
-  }
-  .tab-nav-lyrics {
-    padding: 0.4rem 0.9rem;
-    font-size: 0.8125rem;
+    padding: 0.25rem 0.6rem;
+    min-height: 32px;
+    min-width: auto;
+    font-size: 0.75rem;
   }
 }
 
@@ -395,6 +394,16 @@ body {
   background: rgba(0, 0, 0, 0.08);
   color: var(--ink);
   font-weight: 600;
+}
+
+/* 移动端：「词」按钮与歌/诗的歌保持一致紧凑 */
+@media (max-width: 640px) {
+  .tab-nav-lyrics {
+    padding: 0.25rem 0.6rem;
+    min-height: 32px;
+    min-width: auto;
+    font-size: 0.75rem;
+  }
 }
 
 /* ===== 宝丽来风格海报导出 (#polaroid-export-container) ===== */

@@ -16,7 +16,7 @@ export default function TabNav() {
 
   return (
     <>
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
         <nav className="tab-nav">
           {tabs.map((tab) => (
             <Link

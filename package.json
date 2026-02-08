@@ -6,7 +6,8 @@
     "seed": "npx tsx prisma/seed.ts"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
+    "preview": "lsof -ti:3000 | xargs kill -9 2>/dev/null; rm -f .next/dev/lock; next dev --webpack",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "netease-api": "PORT=3002 npx NeteaseCloudMusicApi",
