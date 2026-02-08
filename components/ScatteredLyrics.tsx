@@ -400,7 +400,7 @@ export default function ScatteredLyrics({ fragments, highlightId, centerSongId =
                             text={frag.text}
                             sourceId={frag.sourceId}
                             onEdit={onEditLyric}
-                            className="inline-block min-w-[1em] rounded hover:bg-black/5"
+                            className="inline-block min-w-[1em] rounded"
                           />
                         </div>
                       ))}

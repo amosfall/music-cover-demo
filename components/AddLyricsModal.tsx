@@ -42,6 +42,7 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
   const [albumName, setAlbumName] = useState(editItem?.albumName ?? "");
   const [artistName, setArtistName] = useState(editItem?.artistName ?? "");
   const [imageUrl, setImageUrl] = useState(editItem?.imageUrl ?? "");
+  const [songName, setSongName] = useState<string>(editItem?.songName ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -154,6 +155,7 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
     setAlbumName(song.albumName);
     setArtistName(song.artistName);
     setImageUrl(song.picUrl);
+    setSongName(song.name ?? "");
     setError(null);
     // 拉取完整歌词，根据已输入内容匹配位置，填充接下来的五行
     try {
@@ -205,10 +207,12 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
     let finalImageUrl: string | undefined;
     let finalArtistName: string | null;
 
+    let finalSongName: string | null = null;
     if (mode === "search") {
       finalAlbumName = selectedSong?.albumName;
       finalImageUrl = selectedSong?.picUrl;
       finalArtistName = selectedSong?.artistName || null;
+      finalSongName = selectedSong?.name?.trim() || null;
     } else if (mode === "select") {
       finalAlbumName = selectedAlbum?.albumName;
       finalImageUrl = selectedAlbum?.imageUrl;
@@ -217,6 +221,7 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
       finalAlbumName = albumName.trim();
       finalImageUrl = imageUrl.trim();
       finalArtistName = artistName.trim() || null;
+      finalSongName = songName.trim() || null;
     }
 
     if (!finalLyrics) {
@@ -246,6 +251,7 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
           albumName: finalAlbumName,
           artistName: finalArtistName,
           imageUrl: finalImageUrl,
+          songName: finalSongName,
         }),
       });
       const text = await res.text();

@@ -6,6 +6,7 @@ type Props = {
   lyrics: string;
   artistName: string | null;
   albumName: string;
+  songName?: string | null;
   /** 用于触发 AnimatePresence 切换动画 */
   itemKey: string;
 };
@@ -41,6 +42,7 @@ export default function FloatingLyrics({
   lyrics,
   artistName,
   albumName,
+  songName,
   itemKey,
 }: Props) {
   const lines = lyrics
@@ -56,7 +58,7 @@ export default function FloatingLyrics({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 5, ease: "easeOut" }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
       >
         <motion.div
           className="flex flex-col items-center gap-3 sm:gap-4"
@@ -78,6 +80,15 @@ export default function FloatingLyrics({
           >
             {[artistName, albumName].filter(Boolean).join("  ·  ")}
           </motion.p>
+          {/* 歌曲名 */}
+          {songName?.trim() && (
+            <motion.p
+              className="mt-1 text-sm text-gray-500/90 sm:text-base"
+              variants={lineEnter}
+            >
+              {songName.trim()}
+            </motion.p>
+          )}
         </motion.div>
       </motion.div>
     </AnimatePresence>

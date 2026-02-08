@@ -9,13 +9,14 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { lyrics, albumName, artistName, imageUrl, showOnLyricsWall } = body;
+    const { lyrics, albumName, artistName, imageUrl, songName, showOnLyricsWall } = body;
 
     const updateData: Record<string, unknown> = {};
     if (lyrics !== undefined) updateData.lyrics = lyrics?.trim() ?? "";
     if (albumName !== undefined) updateData.albumName = albumName?.trim() ?? "";
     if (artistName !== undefined) updateData.artistName = artistName?.trim() || null;
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl?.trim() ?? "";
+    if (songName !== undefined) updateData.songName = songName?.trim() || null;
     if (showOnLyricsWall !== undefined) updateData.showOnLyricsWall = Boolean(showOnLyricsWall);
 
     if (Object.keys(updateData).length === 0) {

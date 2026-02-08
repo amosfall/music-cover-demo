@@ -11,6 +11,7 @@ export type LyricsCardData = {
   albumName: string;
   artistName: string | null;
   imageUrl: string;
+  songName?: string | null;
 };
 
 export default function LyricsWall() {

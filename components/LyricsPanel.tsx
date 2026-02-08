@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { useAuth } from "@clerk/nextjs";
 import FloatingLyrics from "@/components/FloatingLyrics";
 import AlbumStrip from "@/components/AlbumStrip";
 import AddLyricsModal from "@/components/AddLyricsModal";
@@ -14,6 +16,8 @@ type Props = {
 };
 
 export default function LyricsPanel({ headerLeft }: Props) {
+  const { isSignedIn } = useAuth();
+  const router = useRouter();
   const [items, setItems] = useState<LyricsCardData[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -45,6 +49,10 @@ export default function LyricsPanel({ headerLeft }: Props) {
 
   const handleDelete = async () => {
     if (!activeItem) return;
+    if (!isSignedIn) {
+      router.push("/sign-in");
+      return;
+    }
     if (!confirm("确定删除这条歌词？")) return;
     const res = await fetch(`/api/lyrics/${activeItem.id}`, {
       method: "DELETE",
@@ -81,7 +89,13 @@ export default function LyricsPanel({ headerLeft }: Props) {
         <header className="flex items-center justify-between px-4 pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-10 sm:pt-8">
           {headerLeft}
           <button
-            onClick={() => setShowAdd(true)}
+            onClick={() => {
+              if (!isSignedIn) {
+                router.push("/sign-in");
+                return;
+              }
+              setShowAdd(true);
+            }}
             className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full bg-black p-0 transition-colors hover:bg-black/80"
             aria-label="添加"
           >
@@ -123,7 +137,13 @@ export default function LyricsPanel({ headerLeft }: Props) {
           {activeItem && (
             <>
               <button
-                onClick={() => setEditingItem(activeItem)}
+                onClick={() => {
+                  if (!isSignedIn) {
+                    router.push("/sign-in");
+                    return;
+                  }
+                  setEditingItem(activeItem);
+                }}
                 className="min-h-[44px] rounded-full px-4 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
               >
                 编辑
@@ -137,7 +157,13 @@ export default function LyricsPanel({ headerLeft }: Props) {
             </>
           )}
           <button
-            onClick={() => setShowAdd(true)}
+            onClick={() => {
+              if (!isSignedIn) {
+                router.push("/sign-in");
+                return;
+              }
+              setShowAdd(true);
+            }}
             className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full bg-black p-0 transition-colors hover:bg-black/80"
             aria-label="添加"
           >
@@ -159,6 +185,7 @@ export default function LyricsPanel({ headerLeft }: Props) {
                 lyrics={activeItem.lyrics}
                 artistName={activeItem.artistName}
                 albumName={activeItem.albumName}
+                songName={activeItem.songName}
                 itemKey={activeItem.id}
               />
             </div>

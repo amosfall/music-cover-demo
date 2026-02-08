@@ -2,7 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { useAuth } from "@clerk/nextjs";
 import AlbumGrid from "@/components/AlbumGrid";
 import PolaroidPoster from "@/components/PolaroidPoster";
 import TabNav from "@/components/TabNav";
@@ -20,6 +22,8 @@ function extractNeteaseUrl(text: string): string {
 type Category = { id: string; name: string; sortOrder: number };
 
 export default function AlbumsPage() {
+  const { isSignedIn } = useAuth();
+  const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
   const [showPolaroidModal, setShowPolaroidModal] = useState(false);
@@ -567,7 +571,13 @@ export default function AlbumsPage() {
 
       <button
         type="button"
-        onClick={() => setShowSearchOverlay(true)}
+        onClick={() => {
+          if (!isSignedIn) {
+            router.push("/sign-in");
+            return;
+          }
+          setShowSearchOverlay(true);
+        }}
         className="search-trigger-capsule"
         aria-label="添加网易云链接"
       >

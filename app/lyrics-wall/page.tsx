@@ -3,6 +3,7 @@
 import { Suspense, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
+import { useAuth } from "@clerk/nextjs";
 import ScatteredLyrics from "@/components/ScatteredLyrics";
 import type { LyricFragment } from "@/components/ScatteredLyrics";
 import AlbumStrip from "@/components/AlbumStrip";
@@ -59,6 +60,7 @@ function saveStripOrder(ids: string[]) {
 }
 
 function LyricsWallContent() {
+  const { isSignedIn } = useAuth();
   const [showWelcome, setShowWelcome] = useState(true);
   const [items, setItems] = useState<WallItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,6 +70,8 @@ function LyricsWallContent() {
   const [showManageModal, setShowManageModal] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [stripOrder, setStripOrder] = useState<string[]>(() => loadStripOrder());
+  /** 首次打开页面显示「试着点一行歌词吧」，点击任一行后永久隐藏 */
+  const [hintDismissed, setHintDismissed] = useState(false);
   const fetchVersionRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const userHasToggledRef = useRef(false);
@@ -145,6 +149,7 @@ function LyricsWallContent() {
 
   const handleEditLyric = useCallback(
     async (sourceId: string, oldText: string, newText: string) => {
+      if (!isSignedIn) return;
       if (!newText.trim() || newText.trim() === oldText) return;
       const item = items.find((i) => i.id === sourceId);
       if (!item) return;
@@ -169,7 +174,7 @@ function LyricsWallContent() {
         alert(err?.error || `保存失败 ${res.status}，请刷新后重试`);
       }
     },
-    [items, replaceLyricLine]
+    [isSignedIn, items, replaceLyricLine]
   );
 
   // 只展示勾选「上墙」的项（老数据无字段时视为 true）
@@ -270,6 +275,7 @@ function LyricsWallContent() {
   }, [highlightId, albumList]);
 
   const handleDeleteAlbum = async (album: StripItem) => {
+    if (!isSignedIn) return;
     if (!confirm(`确定删除「${album.albumName}」下全部歌曲的歌词？`)) return;
     const albumKey = album.id;
     const toDelete = items.filter((i) => getAlbumKey(i) === albumKey);
@@ -326,6 +332,7 @@ function LyricsWallContent() {
   };
 
   const handleToggleShowOnWall = async (item: WallItem, checked: boolean) => {
+    if (!isSignedIn) return;
     userHasToggledRef.current = true;
     setItems((current) =>
       current.map((i) =>
@@ -372,7 +379,13 @@ function LyricsWallContent() {
           {items.length > 0 && (
             <button
               type="button"
-              onClick={() => setShowManageModal(true)}
+              onClick={() => {
+                if (!isSignedIn) {
+                  router.push("/sign-in");
+                  return;
+                }
+                setShowManageModal(true);
+              }}
               className="rounded-full border border-[var(--paper-dark)] bg-white px-4 py-2 text-sm font-medium text-[var(--ink)] hover:bg-[var(--paper-dark)]"
             >
               管理展示
@@ -395,7 +408,13 @@ function LyricsWallContent() {
             {items.length > 0 ? (
               <button
                 type="button"
-                onClick={() => setShowManageModal(true)}
+                onClick={() => {
+                  if (!isSignedIn) {
+                    router.push("/sign-in");
+                    return;
+                  }
+                  setShowManageModal(true);
+                }}
                 className="rounded-full bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
               >
                 管理展示
@@ -424,13 +443,40 @@ function LyricsWallContent() {
 
   // ── 正常态 ──
   return (
-    <div className="lyrics-gallery" onClick={handleClickBackground}>
+    <div className="lyrics-gallery relative" onClick={handleClickBackground}>
       {/* 顶部 */}
       <header
-        className="relative z-10 flex items-center justify-between px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-2 sm:px-10 sm:pt-7"
+        className="relative z-10 flex items-center justify-between gap-3 px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-2 sm:px-10 sm:pt-7"
         onClick={(e) => e.stopPropagation()}
       >
         <TabNav />
+        {/* 绝对居中：仅首次打开显示，点击任一行歌词后消失且不再出现 */}
+        {!hintDismissed && (
+          <div
+            className="absolute left-1/2 top-1/2 z-0 max-w-max -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+            aria-hidden
+          >
+            <p
+              className="text-center text-base text-[var(--ink-muted)] opacity-40 sm:text-lg"
+              style={{ fontFamily: 'SimSun, "宋体", "Songti SC", serif' }}
+            >
+              试着点一行歌词吧
+            </p>
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            if (!isSignedIn) {
+              router.push("/sign-in");
+              return;
+            }
+            setShowManageModal(true);
+          }}
+          className="shrink-0 rounded-full border border-[var(--paper-dark)] bg-white px-4 py-2 text-sm font-medium text-[var(--ink)] hover:bg-[var(--paper-dark)]"
+        >
+          管理展示
+        </button>
       </header>
 
       {/* 散乱漂浮歌词：点击某行可选中对应专辑、唤起居中展示 */}
@@ -439,9 +485,12 @@ function LyricsWallContent() {
         highlightId={highlightId}
         centerSongId={centerSongId}
         onCenterSongChange={setCenterSongId}
-        onFragmentClick={(albumKey) => setHighlightId((prev) => (prev === albumKey ? null : albumKey))}
+        onFragmentClick={(albumKey) => {
+          setHintDismissed(true);
+          setHighlightId((prev) => (prev === albumKey ? null : albumKey));
+        }}
         onRequestClose={() => setHighlightId(null)}
-        onEditLyric={handleEditLyric}
+        onEditLyric={isSignedIn ? handleEditLyric : undefined}
       />
 
       {/* 底部专辑 Dock：Portal 到 body，避免被父级 overflow/transform 裁切或遮挡 */}
@@ -452,20 +501,25 @@ function LyricsWallContent() {
               items={albumList}
               activeId={highlightId}
               onSelect={handleSelectAlbum}
-              onDelete={handleDeleteAlbum}
-              onReorder={(newItems) => {
-                const ids = newItems.map((i) => i.id);
-                setStripOrder(ids);
-                saveStripOrder(ids);
-              }}
+              onDelete={isSignedIn ? handleDeleteAlbum : undefined}
+              onReorder={
+                isSignedIn
+                  ? (newItems) => {
+                      const ids = newItems.map((i) => i.id);
+                      setStripOrder(ids);
+                      saveStripOrder(ids);
+                    }
+                  : undefined
+              }
             />
           </div>,
           document.body
         )}
 
-      {/* 管理展示弹层：用 Portal 挂到 body，避免被歌词墙的 DOM/事件影响 */}
+      {/* 管理展示弹层：仅登录用户可见，用 Portal 挂到 body */}
       {mounted &&
         showManageModal &&
+        isSignedIn &&
         createPortal(
           <div
             className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"

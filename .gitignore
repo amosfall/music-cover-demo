@@ -53,3 +53,7 @@ public/albums/
 
 # test files
 test-db.ts
+
+# clerk configuration (can include secrets)
+/.clerk/
+Below

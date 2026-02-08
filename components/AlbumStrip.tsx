@@ -85,18 +85,18 @@ function SortableStripItem({
             onSelect(item);
           }
         }}
-        className={`relative overflow-visible rounded-xl transition-shadow focus:outline-none cursor-grab ${
+        className={`relative overflow-visible rounded-lg transition-shadow focus:outline-none cursor-grab ${
           isActive
             ? "ring-2 ring-gray-800/40 shadow-lg"
             : "ring-1 ring-black/5 shadow-md hover:shadow-lg"
         } ${isDragging ? "opacity-90 shadow-xl z-10 cursor-grabbing" : ""}`}
-        animate={{ scale: isActive ? 1.5 : 1 }}
-        whileHover={isDragging ? undefined : { scale: isActive ? 1.5 : 1.06 }}
+        animate={{ scale: isActive ? 1.2 : 1 }}
+        whileHover={isDragging ? undefined : { scale: isActive ? 1.2 : 1.05 }}
         transition={{ type: "spring", stiffness: 300, damping: 22 }}
         {...sortableAttributes}
         {...listeners}
       >
-        <div className="relative h-12 w-12 sm:h-20 sm:w-20 overflow-hidden rounded-xl">
+        <div className="relative h-10 w-10 sm:h-14 sm:w-14 overflow-hidden rounded-lg">
           <img
             src={getProxyImageUrl(item.imageUrl)}
             alt={item.albumName}
@@ -162,7 +162,7 @@ export default function AlbumStrip({ items, activeId, onSelect, onDelete, onReor
   const content = (
     <div
       ref={scrollRef}
-      className="flex items-center gap-3 overflow-x-auto overflow-y-visible min-h-28 sm:min-h-40 px-4 py-4 sm:gap-4 sm:px-8 sm:py-6 scroll-touch"
+      className="flex items-center gap-2 overflow-x-auto overflow-y-visible min-h-16 sm:min-h-20 px-3 py-2 sm:gap-3 sm:px-6 sm:py-3 scroll-touch"
     >
       {items.map((item) => (
         <SortableStripItem

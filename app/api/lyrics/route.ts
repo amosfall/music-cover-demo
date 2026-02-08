@@ -22,7 +22,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { lyrics, albumName, artistName, imageUrl } = body;
+    const { lyrics, albumName, artistName, imageUrl, songName } = body;
 
     if (!lyrics?.trim() || !albumName?.trim() || !imageUrl?.trim()) {
       return NextResponse.json(
@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
           albumName: albumName.trim(),
           artistName: artistName?.trim() || null,
           imageUrl: imageUrl.trim(),
+          songName: songName?.trim() || null,
         },
       })
     );
