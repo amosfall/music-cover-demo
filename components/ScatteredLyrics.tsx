@@ -199,7 +199,7 @@ function EditableLyricLine({
       tabIndex={0}
       className={className}
       style={style}
-      {...(onEdit ? { dataLyricLine: "", dataSourceId: sourceId, dataLineText: text } : {})}
+      {...(onEdit ? { "data-lyric-line": "", "data-source-id": sourceId, "data-line-text": text } : {})}
       onDoubleClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
