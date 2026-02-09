@@ -91,6 +91,7 @@ export default function LyricsPanel({ headerLeft }: Props) {
           <button
             onClick={() => {
               if (!isSignedIn) {
+                alert("请先登录后再添加歌词");
                 router.push("/sign-in");
                 return;
               }
@@ -159,6 +160,7 @@ export default function LyricsPanel({ headerLeft }: Props) {
           <button
             onClick={() => {
               if (!isSignedIn) {
+                alert("请先登录后再添加歌词");
                 router.push("/sign-in");
                 return;
               }

@@ -53,6 +53,7 @@ const CoverImage = memo(function CoverImage({ src, alt }: { src: string; alt: st
         className="h-full w-full object-cover"
         loading="lazy"
         referrerPolicy="no-referrer"
+        crossOrigin="anonymous"
         onError={() => setErr(true)}
       />
     );

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { appendFileSync, mkdirSync } from "fs";
+import { join } from "path";
 import {
-  ClerkProvider,
+  ClerkProvider, // 👈 1. 引入这个
   SignInButton,
   SignUpButton,
   SignedIn,
@@ -9,6 +11,9 @@ import {
 } from "@clerk/nextjs";
 import { Geist, Geist_Mono, Noto_Serif_SC } from "next/font/google";
 import "./globals.css";
+
+const DEBUG_LOG_DIR = join(process.cwd(), ".cursor");
+const DEBUG_LOG_PATH = join(DEBUG_LOG_DIR, "debug.log");
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,17 +43,30 @@ export const viewport = {
   viewportFit: "cover",
 };
 
-// 始终包裹 ClerkProvider，避免 lyrics-wall 等页的 useAuth() 报错；无 key 时用占位以通过 build
 const publishableKey =
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() ||
   "pk_test_placeholder";
+
+// #region agent log
+function _logLayout() {
+  try {
+    mkdirSync(DEBUG_LOG_DIR, { recursive: true });
+    const line = JSON.stringify({ location: "layout.tsx:RootLayout", message: "root layout render", data: { keyIsPlaceholder: publishableKey === "pk_test_placeholder", hypothesisId: "C" }, timestamp: Date.now() }) + "\n";
+    appendFileSync(DEBUG_LOG_PATH, line);
+  } catch {}
+}
+// #endregion
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // #region agent log
+  _logLayout();
+  // #endregion
   return (
+    // 👇 2. 用 ClerkProvider 包裹住整个 html 或 body
     <ClerkProvider publishableKey={publishableKey}>
       <html lang="zh-CN">
         <head>

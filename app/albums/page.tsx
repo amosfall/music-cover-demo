@@ -1,4 +1,4 @@
-"use client";
+"use client"; // <--- 必须加这一行在最顶部（useAuth 等 hook 需在客户端运行）
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
@@ -609,6 +609,7 @@ export default function AlbumsPage() {
         type="button"
         onClick={() => {
           if (!isSignedIn) {
+            alert("请先登录后再添加歌/专辑/歌单");
             router.push("/sign-in");
             return;
           }

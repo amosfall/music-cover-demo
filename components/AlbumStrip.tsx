@@ -102,6 +102,7 @@ function SortableStripItem({
             alt={item.albumName}
             className="absolute inset-0 h-full w-full object-cover pointer-events-none"
             referrerPolicy="no-referrer"
+            crossOrigin="anonymous"
             draggable={false}
           />
         </div>

@@ -611,90 +611,82 @@ function LyricsWallContent() {
     );
   }
 
-  // ── 空态：无歌词数据 或 没有勾选上墙的项 ──
-  if (fragments.length === 0) {
-    return (
-      <div className="lyrics-gallery">
-        <header className="flex items-center justify-between px-6 pt-6 sm:px-10 sm:pt-8">
-          <TabNav />
-          {items.length > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                if (!isSignedIn) {
-                  router.push("/sign-in");
-                  return;
-                }
-                setShowManageModal(true);
-              }}
-              className="rounded-full border border-[var(--paper-dark)] bg-white px-4 py-2 text-sm font-medium text-[var(--ink)] hover:bg-[var(--paper-dark)]"
-            >
-              管理展示
-            </button>
-          )}
-        </header>
-        <div className="flex flex-1 flex-col items-center justify-center gap-5 px-4">
-          <p className="text-5xl opacity-20">&#x1F3B6;</p>
-          <p className="text-lg font-light text-gray-400 text-center">
-            {items.length > 0
-              ? "当前没有歌曲上墙"
-              : "还没有歌词数据"}
-          </p>
-          {items.length > 0 ? (
-            <p className="text-center text-sm text-[var(--ink-muted)] max-w-sm">
-              点击「管理展示」勾选要出现在诗的歌的歌曲
-            </p>
-          ) : (
-            <textarea
-              value={emptyHintText}
-              onChange={(e) => saveEmptyHint(e.target.value)}
-              className="w-full max-w-md resize-y rounded-lg border border-[var(--paper-dark)] bg-white/80 px-4 py-3 text-center text-sm leading-relaxed text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
-              rows={5}
-              placeholder={DEFAULT_EMPTY_HINT}
-            />
-          )}
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            {items.length > 0 ? (
-              <button
-                type="button"
-                onClick={() => {
-                  if (!isSignedIn) {
-                    router.push("/sign-in");
-                    return;
-                  }
-                  setShowManageModal(true);
-                }}
-                className="rounded-full bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
-              >
-                管理展示
-              </button>
-            ) : (
-              <>
-                <a
-                  href="/albums"
-                  className="rounded-full bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white no-underline transition-opacity hover:opacity-90"
-                >
-                  去封面页添加歌曲
-                </a>
-                <a
-                  href="/lyrics"
-                  className="rounded-full border border-[var(--paper-dark)] bg-white px-5 py-2.5 text-sm font-medium text-[var(--ink)] no-underline transition-colors hover:bg-[var(--paper-dark)]"
-                >
-                  去歌词页手动添加
-                </a>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   /** 歌词居中沉浸模式：点击某行后 highlightId 有值，隐藏顶部导航与管理展示 */
   const isImmersive = highlightId !== null;
 
-  // ── 正常态 ──
+  // 单一 return：空态与正常态二选一渲染主内容，管理展示弹层始终独立渲染，避免「取消全部勾选」后 displayItems 为空导致走空态分支时弹层从树中消失
   return (
+    <>
+      {fragments.length === 0 ? (
+        <div className="lyrics-gallery">
+          <header className="flex items-center justify-between px-6 pt-6 sm:px-10 sm:pt-8">
+            <TabNav />
+            {items.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowManageModal(true)}
+                className="rounded-full border border-[var(--paper-dark)] bg-white px-4 py-2 text-sm font-medium text-[var(--ink)] hover:bg-[var(--paper-dark)]"
+              >
+                管理展示
+              </button>
+            )}
+          </header>
+          <div className="flex flex-1 flex-col items-center justify-center gap-5 px-4">
+            <p className="text-5xl opacity-20">&#x1F3B6;</p>
+            <p className="text-lg font-light text-gray-400 text-center">
+              {items.length > 0
+                ? "当前没有歌曲上墙"
+                : "还没有歌词数据"}
+            </p>
+            {items.length > 0 ? (
+              <p className="text-center text-sm text-[var(--ink-muted)] max-w-sm">
+                点击「管理展示」勾选要出现在诗的歌的歌曲
+              </p>
+            ) : (
+              <textarea
+                value={emptyHintText}
+                onChange={(e) => saveEmptyHint(e.target.value)}
+                className="w-full max-w-md resize-y rounded-lg border border-[var(--paper-dark)] bg-white/80 px-4 py-3 text-center text-sm leading-relaxed text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                rows={5}
+                placeholder={DEFAULT_EMPTY_HINT}
+              />
+            )}
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              {items.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setShowManageModal(true)}
+                  className="rounded-full bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                >
+                  管理展示
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowManageModal(true)}
+                    className="rounded-full bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                  >
+                    管理展示
+                  </button>
+                  <a
+                    href="/albums"
+                    className="rounded-full bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white no-underline transition-opacity hover:opacity-90"
+                  >
+                    去封面页添加歌曲
+                  </a>
+                  <a
+                    href="/lyrics"
+                    className="rounded-full border border-[var(--paper-dark)] bg-white px-5 py-2.5 text-sm font-medium text-[var(--ink)] no-underline transition-colors hover:bg-[var(--paper-dark)]"
+                  >
+                    去歌词页手动添加
+                  </a>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
     <div className="lyrics-gallery relative" onClick={handleClickBackground}>
       {/* 顶部：歌词居中时隐藏，做成沉浸效果 */}
       {!isImmersive && (
@@ -772,11 +764,11 @@ function LyricsWallContent() {
           </div>,
           document.body
         )}
-
-      {/* 管理展示弹层：仅登录用户可见，用 Portal 挂到 body */}
+    </div>
+      )}
+      {/* 管理展示弹层：与空态/正常态解耦，始终在 showManageModal 时渲染，避免取消全部勾选后弹层消失 */}
       {mounted &&
         showManageModal &&
-        isSignedIn &&
         createPortal(
           <div
             className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
@@ -839,6 +831,7 @@ function LyricsWallContent() {
                             alt=""
                             className="h-full w-full object-cover"
                             referrerPolicy="no-referrer"
+                            crossOrigin="anonymous"
                           />
                         </div>
                         <div className="min-w-0 flex-1">
@@ -863,7 +856,7 @@ function LyricsWallContent() {
           </div>,
           document.body
         )}
-    </div>
+    </>
   );
 }
 
