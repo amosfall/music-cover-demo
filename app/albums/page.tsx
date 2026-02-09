@@ -301,6 +301,7 @@ export default function AlbumsPage() {
         type: "image/png",
         backgroundColor: isTransparent ? undefined : "#dcd7c9",
         imagePlaceholder: PLACEHOLDER,
+        skipFonts: true,
       });
       setExportPreviewUrl(dataUrl);
       setExportPreviewFilename(`音乐浮墙-宝丽来-${polaroidRatio.replace(":", "x")}-${Date.now()}.png`);
@@ -330,22 +331,53 @@ export default function AlbumsPage() {
       return;
     }
     setExportError(null);
+    const imgs = Array.from(gridEl.querySelectorAll<HTMLImageElement>("img[src]"));
+    const restores: { el: HTMLImageElement; src: string }[] = [];
     try {
-      await document.fonts.ready;
+      await Promise.race([
+        document.fonts.ready,
+        new Promise<void>((r) => setTimeout(r, 2500)),
+      ]);
       await new Promise((r) => setTimeout(r, 300));
+      for (const img of imgs) {
+        const src = img.getAttribute("src");
+        if (!src || src.startsWith("data:")) continue;
+        try {
+          const res = await fetch(src, { mode: "cors", credentials: "omit" });
+          if (!res.ok) continue;
+          const blob = await res.blob();
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+          restores.push({ el: img, src });
+          img.src = dataUrl;
+        } catch {
+          // 单张失败不阻断，保留原 src
+        }
+      }
+      await new Promise((r) => setTimeout(r, 100));
       const { toPng } = await import("html-to-image");
       const PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'%3E%3C/svg%3E";
-      const dataUrl = await toPng(gridEl, {
-        pixelRatio: 2,
-        backgroundColor: "#fafafa",
-        cacheBust: true,
-        imagePlaceholder: PLACEHOLDER,
-        filter: (node) => {
-          if (node instanceof HTMLElement && node.tagName === "BUTTON") return false;
-          if (node instanceof HTMLElement && node.getAttribute?.("aria-label") === "添加专辑") return false;
-          return true;
-        },
-      });
+      const dataUrl = await Promise.race([
+        toPng(gridEl, {
+          pixelRatio: 2,
+          backgroundColor: "#fafafa",
+          cacheBust: true,
+          imagePlaceholder: PLACEHOLDER,
+          skipFonts: true,
+          filter: (node) => {
+            if (node instanceof HTMLElement && node.tagName === "BUTTON") return false;
+            if (node instanceof HTMLElement && node.getAttribute?.("aria-label") === "添加专辑") return false;
+            return true;
+          },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("导出超时，请稍后重试")), 15000)
+        ),
+      ]);
       setExportPreviewUrl(dataUrl);
       const catName = categories.find((c) => c.id === activeCategoryId)?.name;
       setExportPreviewFilename(`音乐浮墙${catName ? `-${catName}` : ""}-${Date.now()}.png`);
@@ -355,6 +387,10 @@ export default function AlbumsPage() {
       console.error("Export poster failed:", err);
       setExportError("导出失败，请稍后重试");
       alert(`导出失败：${msg || "未知错误"}`);
+    } finally {
+      for (const { el, src } of restores) {
+        el.src = src;
+      }
     }
   };
 
@@ -776,7 +812,7 @@ export default function AlbumsPage() {
             >
               ×
             </button>
-            <img src={exportPreviewUrl} alt="导出预览" className="max-h-[70dvh] w-full object-contain rounded-lg" draggable={false} />
+            <img src={exportPreviewUrl} alt="导出预览" className="max-h-[70dvh] w-full object-contain rounded-lg" draggable={false} referrerPolicy="no-referrer" />
             <p className="mt-3 text-center text-sm text-[var(--ink-muted)]">长按图片可保存到相册</p>
             <div className="mt-4 flex justify-center">
               <button

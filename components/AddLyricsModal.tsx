@@ -461,6 +461,7 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
                           className="object-cover"
                           sizes="48px"
                           unoptimized
+                          referrerPolicy="no-referrer"
                         />
                       </div>
                     )}
@@ -528,6 +529,7 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
                         className="object-cover"
                         sizes="40px"
                         unoptimized
+                        referrerPolicy="no-referrer"
                       />
                     </div>
                     <div className="min-w-0">
@@ -601,6 +603,7 @@ export default function AddLyricsModal({ onClose, onSuccess, editItem }: Props) 
                   className="object-cover"
                   sizes="40px"
                   unoptimized
+                  referrerPolicy="no-referrer"
                 />
               </div>
             )}

@@ -134,6 +134,7 @@ export default function AlbumUploadModal({ onClose, onSuccess }: Props) {
                   src={preview}
                   alt="预览"
                   className="h-full w-full rounded-lg object-cover"
+                  referrerPolicy="no-referrer"
                 />
               ) : (
                 <>
@@ -164,6 +165,7 @@ export default function AlbumUploadModal({ onClose, onSuccess }: Props) {
                     src={getProxyImageUrl(imageUrl)}
                     alt="封面"
                     className="h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
                   />
                 </div>
               </div>

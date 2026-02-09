@@ -40,7 +40,8 @@ const EMPTY_HINT_STORAGE_KEY = "lyrics-wall-empty-hint";
 const DEFAULT_EMPTY_HINT = `登录之后点清空,然后复制歌单链接,就可以形成自己的专辑/文字墙
 复制歌单的链接到"歌"底部的"这里",稍等片刻就可以识别成功喔
 在诗的歌,点击任意一行歌词即可查看
-建议歌单里10首歌左右效果为最佳`;
+建议歌单里10首歌左右效果为最佳
+联系邮箱：amosfallcheng@gmail.com`;
 
 /** 去掉 LRC 时间戳 [00:00.00]，只保留有效歌词 */
 function stripLrcTime(line: string): string {

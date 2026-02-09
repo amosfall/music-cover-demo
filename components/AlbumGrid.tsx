@@ -1,32 +1,51 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, memo, useCallback } from "react";
 import Image from "next/image";
 import { getProxyImageUrl } from "@/lib/proxy-image";
 
 const isExternalUrl = (url: string) => /^https?:\/\//.test(url);
+const isDataUrl = (url: string) => /^data:/.test(url);
+/** 识别占位图 URL：不发起请求，直接用内联 SVG 渲染，避免外网/墙导致不显示。music.126.net 为真实封面，不走此分支 */
+const isPlaceholderUrl = (url: string) =>
+  !url ||
+  url.startsWith("data:image/svg") ||
+  url.includes("placehold.co") ||
+  url.includes("placehold.it");
+
+/** 内联占位图：灰底 + ♪，完全不依赖外网 */
+const PlaceholderCover = memo(function PlaceholderCover() {
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-[#e5e5e5] text-[var(--ink-muted)]" aria-hidden>
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" className="opacity-60">
+        <text x="12" y="16" textAnchor="middle" fontSize="18" fontFamily="sans-serif">♪</text>
+      </svg>
+    </div>
+  );
+});
 
 /** 封面加载失败时的占位：灰色底 + 专辑名首字或 🎵 */
-function CoverFallback({ name }: { name: string }) {
+const CoverFallback = memo(function CoverFallback({ name }: { name: string }) {
   const char = name?.trim()[0] || "♪";
   return (
     <div className="flex h-full w-full items-center justify-center bg-[var(--paper-dark)] text-4xl font-medium text-[var(--ink-muted)]">
       {char}
     </div>
   );
-}
+});
 
-function CoverImage({ src, alt }: { src: string; alt: string }) {
+const CoverImage = memo(function CoverImage({ src, alt }: { src: string; alt: string }) {
   const [err, setErr] = useState(false);
-  const displaySrc = getProxyImageUrl(src);
-  const isProxy = displaySrc.startsWith("/api/proxy-image");
-  if (!src) {
-    return <CoverFallback name={alt} />;
+  if (!src || isPlaceholderUrl(src)) {
+    return <PlaceholderCover />;
   }
   if (err) {
     return <CoverFallback name={alt} />;
   }
-  if (isProxy || isExternalUrl(displaySrc)) {
+  const displaySrc = getProxyImageUrl(src);
+  const isProxy = displaySrc.startsWith("/api/proxy-image");
+  const useImg = isProxy || isExternalUrl(displaySrc) || isDataUrl(displaySrc);
+  if (useImg) {
     return (
       <img
         src={displaySrc}
@@ -46,10 +65,11 @@ function CoverImage({ src, alt }: { src: string; alt: string }) {
       className="object-cover"
       sizes="(max-width: 640px) 45vw, (max-width: 1024px) 22vw, 180px"
       unoptimized
+      referrerPolicy="no-referrer"
       onError={() => setErr(true)}
     />
   );
-}
+});
 
 type AlbumCover = {
   id: string;
@@ -88,12 +108,26 @@ export default function AlbumGrid({ categoryId }: AlbumGridProps) {
       .catch(() => setLoading(false));
   }, [categoryId]);
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
+  const handleDelete = useCallback(async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm("确定删除这张专辑？")) return;
     const res = await fetch(`/api/albums/${id}`, { method: "DELETE" });
     if (res.ok) setItems((prev) => prev.filter((i) => i.id !== id));
-  };
+  }, []);
+
+  const handleSelectAlbum = useCallback((item: AlbumCover) => {
+    setSelectedAlbum(item);
+  }, []);
+
+  const list = Array.isArray(items) ? items : [];
+  const listDeduped = useMemo(() => {
+    const seen = new Set<string>();
+    return list.filter((item) => {
+      if (seen.has(item.albumName)) return false;
+      seen.add(item.albumName);
+      return true;
+    });
+  }, [items]);
 
   if (loading) {
     return (
@@ -102,15 +136,6 @@ export default function AlbumGrid({ categoryId }: AlbumGridProps) {
       </div>
     );
   }
-
-  const list = Array.isArray(items) ? items : [];
-  // 按 albumName 去重，只保留每个专辑的第一条记录
-  const seenNames = new Set<string>();
-  const listDeduped = list.filter((item) => {
-    if (seenNames.has(item.albumName)) return false;
-    seenNames.add(item.albumName);
-    return true;
-  });
   if (listDeduped.length === 0) {
     return null;
   }
@@ -123,10 +148,10 @@ export default function AlbumGrid({ categoryId }: AlbumGridProps) {
             key={item.id}
             className="album-cover-wrapper group cursor-pointer"
             style={getItemStyle(index)}
-            onClick={() => setSelectedAlbum(item)}
+            onClick={() => handleSelectAlbum(item)}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === "Enter" && setSelectedAlbum(item)}
+            onKeyDown={(e) => e.key === "Enter" && handleSelectAlbum(item)}
           >
             <div className="album-cover-inner relative">
               <div className="relative aspect-square overflow-hidden rounded-lg bg-[var(--paper-dark)] shadow-lg transition-all duration-300 group-hover:scale-105 group-hover:shadow-xl">

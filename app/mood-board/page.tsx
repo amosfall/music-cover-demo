@@ -12,6 +12,7 @@ const FIXED_INSTRUCTION_LINES = [
   "复制歌单的链接到「歌」底部的「这里」,稍等片刻就可以识别成功喔",
   "在诗的歌,点击任意一行歌词即可查看",
   "建议歌单里10首歌左右效果为最佳",
+  "联系邮箱：amosfallcheng@gmail.com",
 ];
 
 export default function MoodBoardPage() {
