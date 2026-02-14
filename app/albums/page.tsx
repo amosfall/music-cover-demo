@@ -1,6 +1,6 @@
 "use client"; // <--- 必须加这一行在最顶部（useAuth 等 hook 需在客户端运行）
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
@@ -33,8 +33,6 @@ function extractPlaylistUrl(text: string): string {
 }
 
 type Category = { id: string; name: string; sortOrder: number };
-
-import { Suspense } from "react";
 
 function AlbumsContent() {
   const { isSignedIn } = useAuth();
@@ -908,7 +906,7 @@ function AlbumsContent() {
 
 export default function AlbumsPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+    <Suspense fallback={<div className="flex h-screen w-full items-center justify-center text-sm text-[var(--ink-muted)]">加载中...</div>}>
       <AlbumsContent />
     </Suspense>
   );

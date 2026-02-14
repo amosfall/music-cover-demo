@@ -265,12 +265,9 @@ export default function AlbumGrid({ categoryId, scope = "personal", readOnly = f
     // 公共区域不需要去重，因为后端已经聚合了
     if (scope === "public") return list;
     
-    const seen = new Set<string>();
-    return list.filter((item) => {
-      if (seen.has(item.albumName)) return false;
-      seen.add(item.albumName);
-      return true;
-    });
+    // Personal scope: show all items (songs) without deduplication
+    // This allows multiple songs from the same album to be displayed
+    return list;
   }, [items, scope]);
 
   const handleDelete = useCallback(async (id: string, e: React.MouseEvent) => {
@@ -348,8 +345,8 @@ export default function AlbumGrid({ categoryId, scope = "personal", readOnly = f
                   </div>
                 )}
                 <div className="mt-2 text-center">
-                  <p className="truncate text-sm font-medium text-[var(--ink)]">
-                    {item.albumName}
+                  <p className="truncate text-sm font-medium text-[var(--ink)]" title={item.songName || item.albumName}>
+                    {item.songName || item.albumName}
                   </p>
                   {(item.artistName || item.releaseYear) && (
                     <p className="truncate text-xs text-[var(--ink-muted)]">

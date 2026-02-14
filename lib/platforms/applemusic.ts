@@ -14,42 +14,44 @@ export async function fetchAppleMusicPlaylist(url: string): Promise<PlaylistTrac
 
   const html = await res.text();
 
-  // Extract JSON from script tag - 支援多種模式
-  const scriptPatterns = [
-    /<script type="application\/json" id="serialized-server-data">(.+?)<\/script>/s,
-    /<script[^>]*id="serialized-server-data"[^>]*>(.+?)<\/script>/s,
-    /<script[^>]*type="application\/json"[^>]*>(.+?)<\/script>/s
-  ];
-
-  let jsonStr = null;
-  for (const pattern of scriptPatterns) {
-    const match = html.match(pattern);
-    if (match) {
-      jsonStr = match[1];
-      break;
-    }
-  }
-
-  if (!jsonStr) {
+  // Extract JSON from script tag
+  const match = html.match(/<script type="application\/json" id="serialized-server-data">(.+?)<\/script>/);
+  if (!match) {
     throw new Error("无法解析 Apple Music 页面数据");
   }
 
   try {
+    const jsonStr = match[1];
     const data = JSON.parse(jsonStr);
 
     // Navigate the complex Apple Music JSON structure
-    // 根據實際資料結構，data 可能被包裝在一個陣列中，或者直接是對象
     let root = data;
-    if (Array.isArray(data) && data.length > 0) {
-      root = data[0];
+    if (Array.isArray(data)) {
+      if (data.length > 0) {
+        root = data[0];
+      } else {
+         throw new Error("Apple Music 返回了空数组");
+      }
     }
     
-    const sections = root?.data?.sections;
+    // Handle case where sections are nested in data[0] or data.data[0]
+    // Structure A: { data: { sections: [...] } }
+    // Structure B: [{ data: { sections: [...] } }]
+    // Structure C: { data: [{ data: { sections: [...] } }] }
+    
+    // Check if 'data' property is an array (Structure C)
+    if (root.data && Array.isArray(root.data)) {
+        if (root.data.length > 0) {
+            root = root.data[0];
+        }
+    }
+    
+    const sections = root?.data?.sections || root?.sections;
     if (!Array.isArray(sections)) {
-      throw new Error("Apple Music 数据结构不匹配: 找不到 sections");
+      throw new Error("Apple Music 数据结构不匹配");
     }
 
-    // Find the section that contains tracks - 尋找 trackLockup section
+    // Find the section that contains tracks
     const trackSection = sections.find((s: any) => s.itemKind === 'trackLockup');
     if (!trackSection || !Array.isArray(trackSection.items)) {
       throw new Error("未找到歌曲列表部分");
@@ -70,7 +72,7 @@ export async function fetchAppleMusicPlaylist(url: string): Promise<PlaylistTrac
       const artworkUrl = item.artwork?.dictionary?.url || "";
       const picUrl = artworkUrl.replace("{w}", "300").replace("{h}", "300").replace("{f}", "jpg");
 
-      return {
+      const result: PlaylistTrackItem = {
         name: title,
         artistName: artistName,
         picUrl: picUrl,
@@ -78,6 +80,7 @@ export async function fetchAppleMusicPlaylist(url: string): Promise<PlaylistTrac
         songId: "", // Netease ID not applicable
         originalLink: item.contentDescriptor?.url || ""
       };
+      return result;
     });
   } catch (e: any) {
     throw new Error(`Apple Music 数据解析失败: ${e.message}`);
