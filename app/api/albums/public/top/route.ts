@@ -12,6 +12,7 @@ type TopAlbum = {
   pickCount: number;
   avgRating: number;
   reviewCount: number;
+  releaseYear: string | null;
 };
 
 export async function GET() {
@@ -107,14 +108,14 @@ export async function GET() {
       const albumName = item.albumName;
       const artistName = item.artistName; // 可能为 null
 
-      // 找封面：取第一张非空的
+      // 找封面和发行年份：取第一张非空的
       const cover = await prisma.albumCover.findFirst({
         where: {
           albumName,
           ...(artistName ? { artistName } : {}),
           imageUrl: { not: "" },
         },
-        select: { imageUrl: true },
+        select: { imageUrl: true, releaseYear: true },
       });
 
       // 找评分聚合
@@ -131,6 +132,7 @@ export async function GET() {
         albumName,
         artistName,
         imageUrl: cover?.imageUrl || "",
+        releaseYear: cover?.releaseYear || null,
         pickCount: item.count,
         avgRating: reviewAgg._avg.rating || 0,
         reviewCount: reviewAgg._count._all,

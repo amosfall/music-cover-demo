@@ -656,6 +656,14 @@ function AlbumsContent() {
               >
                 全部
               </button>
+              
+              <Link
+                href="/albums?view=personal"
+                className="rounded-full bg-gray-100 px-4 py-1.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700 flex items-center gap-1"
+              >
+                <span>快来添加专辑吧！</span>
+                <span className="text-xs">→</span>
+              </Link>
             </div>
             {publicSubView === "top20" && (
               <p className="text-xs text-[var(--ink-muted)]">

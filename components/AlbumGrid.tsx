@@ -401,7 +401,11 @@ export default function AlbumGrid({ categoryId, scope = "personal", readOnly = f
                 </p>
                 {(selectedAlbum.artistName || selectedAlbum.releaseYear?.trim()) && (
                   <p className="mt-0.5 text-sm text-[var(--ink-muted)]">
-                    {[selectedAlbum.artistName, selectedAlbum.releaseYear?.trim()]
+                    {[
+                      selectedAlbum.artistName,
+                      // 如果有发行年份，提取前4位年份
+                      selectedAlbum.releaseYear?.trim()?.substring(0, 4)
+                    ]
                       .filter(Boolean)
                       .join(" / ")}
                   </p>
