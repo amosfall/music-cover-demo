@@ -459,7 +459,7 @@ function AlbumsContent() {
     <div className="mx-auto min-h-screen max-w-6xl px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(7rem,env(safe-area-inset-bottom)+5rem)] sm:px-6 sm:py-8 sm:pb-28">
       <header className="mb-8 text-center sm:mb-12">
         <h1 className="hero-title text-3xl text-[var(--ink)] sm:text-5xl">
-          音乐浮墙
+          poeticsongs
         </h1>
         <p className="hero-subtitle mt-3 text-sm text-[var(--ink-muted)] sm:mt-4">
           「找到自由，就找到歌声」

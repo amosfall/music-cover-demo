@@ -32,7 +32,7 @@ const notoSerifSC = Noto_Serif_SC({
 });
 
 export const metadata: Metadata = {
-  title: "音乐浮墙 | 封面墙 & 歌词墙",
+  title: "poeticsongs",
   description: "收藏专辑封面，记录打动你的歌词",
 };
 
