@@ -383,6 +383,7 @@ function LyricsWallContent() {
   const fragments: LyricFragment[] = useMemo(() => {
     const result: LyricFragment[] = [];
     for (const item of displayItems) {
+      if (!item.lyrics || !item.lyrics.trim()) continue; // 忽略无歌词的項目
       const lines = item.lyrics
         .split(/\n/)
         .map((l) => stripLrcTime(l))
