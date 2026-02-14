@@ -42,7 +42,11 @@ async function resolveShortLink(url: string): Promise<string> {
     // 用 manual 模式拿到 302 的 Location，避免被后续 HTML 页面覆盖
     const res = await fetch(url, {
       redirect: "manual",
-      headers: { "User-Agent": "Mozilla/5.0" },
+      headers: { 
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Cookie": "os=pc; appver=2.9.7"
+      },
     });
     const location = res.headers.get("location");
     console.log("[parse-netease] 163cn.tv redirect location:", location);
@@ -129,10 +133,18 @@ async function fetchViaNeteaseApi(
   const url = baseUrl.replace(/\/$/, "");
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  
+  const extraCookie = process.env.NETEASE_COOKIE || "os=pc; appver=2.9.7";
+  const commonHeaders = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Cookie": extraCookie,
+    "Accept": "application/json, text/plain, */*",
+  };
+
   try {
     if (type === "song") {
       const res = await fetch(`${url}/song/detail?ids=${id}`, {
-        headers: { "User-Agent": "Mozilla/5.0" },
+        headers: commonHeaders,
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
@@ -146,7 +158,7 @@ async function fetchViaNeteaseApi(
       const ctrl2 = new AbortController();
       const t2 = setTimeout(() => ctrl2.abort(), FETCH_TIMEOUT_MS);
       const res = await fetch(`${url}/album?id=${id}`, {
-        headers: { "User-Agent": "Mozilla/5.0" },
+        headers: commonHeaders,
         signal: ctrl2.signal,
       });
       clearTimeout(t2);

@@ -13,6 +13,7 @@ const FIXED_INSTRUCTION_LINES = [
   "在诗的歌,点击任意一行歌词即可查看",
   "建议歌单里10首歌左右效果为最佳",
   "联系邮箱：amosfallcheng@gmail.com",
+  "小红书@陪我一起冒险",
 ];
 
 export default function MoodBoardPage() {

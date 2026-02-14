@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "p3.music.126.net", pathname: "/**" },
       { protocol: "https", hostname: "p4.music.126.net", pathname: "/**" },
       { protocol: "https", hostname: "placehold.co", pathname: "/**" },
+      { protocol: "https", hostname: "img.clerk.com", pathname: "/**" },
     ],
   },
 };

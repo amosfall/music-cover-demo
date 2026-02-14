@@ -7,9 +7,14 @@ export async function getFirstTrackFromAlbum(
   albumId: string
 ): Promise<{ songId: string; songName: string } | null> {
   const base = apiBase.replace(/\/$/, "");
+  const extraCookie = process.env.NETEASE_COOKIE || "os=pc; appver=2.9.7";
   try {
     const res = await fetch(`${base}/album?id=${albumId}`, {
-      headers: { "User-Agent": "Mozilla/5.0" },
+      headers: { 
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Cookie": extraCookie,
+        "Accept": "application/json, text/plain, */*",
+      },
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -38,9 +43,14 @@ export async function fetchNeteaseLyrics(
   songId: string
 ): Promise<string | null> {
   const base = apiBase.replace(/\/$/, "");
+  const extraCookie = process.env.NETEASE_COOKIE || "os=pc; appver=2.9.7";
   try {
     const res = await fetch(`${base}/lyric?id=${songId}`, {
-      headers: { "User-Agent": "Mozilla/5.0" },
+      headers: { 
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Cookie": extraCookie,
+        "Accept": "application/json, text/plain, */*",
+      },
     });
     if (!res.ok) return null;
     const data = await res.json();

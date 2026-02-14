@@ -10,27 +10,29 @@ export default async function middleware(request: NextRequest, event: NextFetchE
   const origin = request.nextUrl.origin;
   // #region agent log
   const entryPayload = { location: "middleware.ts:entry", message: "middleware request", data: { pathname: request.nextUrl.pathname, hasClerkKey: !!process.env.CLERK_SECRET_KEY, hypothesisId: "B" } };
-  fetch(LOG_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...entryPayload, timestamp: Date.now() }) }).catch(() => {});
-  fetch(`${origin}/api/debug-log`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(entryPayload) }).catch(() => {});
+  fetch(LOG_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...entryPayload, timestamp: Date.now() }) }).catch(() => { });
+  fetch(`${origin}/api/debug-log`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(entryPayload) }).catch(() => { });
   // #endregion
-  let res: NextResponse;
+  let res: NextResponse | Response;
   try {
     if (!process.env.CLERK_SECRET_KEY) {
       res = NextResponse.next();
     } else {
-      res = await clerkHandler(request, event);
+      const clerkRes = await clerkHandler(request, event);
+      if (clerkRes) res = clerkRes;
+      else res = NextResponse.next();
     }
     // #region agent log
     const exitPayload = { location: "middleware.ts:exit", message: "middleware response", data: { status: res?.status, hypothesisId: "B" } };
-    fetch(LOG_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...exitPayload, timestamp: Date.now() }) }).catch(() => {});
-    fetch(`${origin}/api/debug-log`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(exitPayload) }).catch(() => {});
+    fetch(LOG_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...exitPayload, timestamp: Date.now() }) }).catch(() => { });
+    fetch(`${origin}/api/debug-log`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(exitPayload) }).catch(() => { });
     // #endregion
     return res;
   } catch (e) {
     // #region agent log
     const catchPayload = { location: "middleware.ts:catch", message: "middleware threw", data: { error: String(e), hypothesisId: "B" } };
-    fetch(LOG_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...catchPayload, timestamp: Date.now() }) }).catch(() => {});
-    fetch(`${origin}/api/debug-log`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(catchPayload) }).catch(() => {});
+    fetch(LOG_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...catchPayload, timestamp: Date.now() }) }).catch(() => { });
+    fetch(`${origin}/api/debug-log`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(catchPayload) }).catch(() => { });
     // #endregion
     throw e;
   }

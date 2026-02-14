@@ -12,9 +12,24 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const categoryId = searchParams.get("categoryId");
+    const scope = searchParams.get("scope");
 
     const items = await withDbRetry(async () => {
-      let where: Record<string, unknown> = { ...userFilter };
+      let where: Record<string, unknown> = {};
+
+      if (scope === "public") {
+        // 公共区域：获取所有专辑（不筛选 userId），限制数量防止过载
+        // 如果需要可以加过滤条件比如 isPublic: true，目前直接返回所有
+        return prisma.albumCover.findMany({
+          where: {},
+          orderBy: { createdAt: "desc" },
+          take: 100, // 限制最新 100 条
+        });
+      }
+
+      // 个人区域：必须筛选 userId
+      where = { ...userFilter };
+      
       if (categoryId && categoryId !== "all") {
         const defaultCat = await prisma.category.findFirst({
           where: { name: "Default", ...userFilter },

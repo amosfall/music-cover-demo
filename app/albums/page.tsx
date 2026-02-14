@@ -2,20 +2,33 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAuth } from "@clerk/nextjs";
 import AlbumGrid from "@/components/AlbumGrid";
 import PolaroidPoster from "@/components/PolaroidPoster";
 import TabNav from "@/components/TabNav";
 
-/** 从粘贴文本中提取网易云链接（支持分享文案中含 URL） */
-function extractNeteaseUrl(text: string): string {
+/** 从粘贴文本中提取音乐平台链接 */
+function extractPlaylistUrl(text: string): string {
   const trimmed = text.trim();
-  const urlMatch = trimmed.match(/https?:\/\/[^\s]+music\.163\.com[^\s]*/i);
-  if (urlMatch) {
-    return urlMatch[0].replace(/[)\]\s]+$/, "").trim();
-  }
+  
+  // 1. 网易云
+  const neteaseMatch = trimmed.match(/https?:\/\/[^\s]+music\.163\.com[^\s]*/i);
+  if (neteaseMatch) return neteaseMatch[0].replace(/[)\]\s]+$/, "").trim();
+
+  // 2. QQ 音乐
+  const qqMatch = trimmed.match(/https?:\/\/(?:y\.qq\.com|i\.y\.qq\.com)[^\s]*/i);
+  if (qqMatch) return qqMatch[0].replace(/[)\]\s]+$/, "").trim();
+
+  // 3. Spotify
+  const spotifyMatch = trimmed.match(/https?:\/\/open\.spotify\.com[^\s]*/i);
+  if (spotifyMatch) return spotifyMatch[0].replace(/[)\]\s]+$/, "").trim();
+
+  // 4. Apple Music
+  const appleMatch = trimmed.match(/https?:\/\/music\.apple\.com[^\s]*/i);
+  if (appleMatch) return appleMatch[0].replace(/[)\]\s]+$/, "").trim();
+
   return trimmed;
 }
 
@@ -24,8 +37,14 @@ type Category = { id: string; name: string; sortOrder: number };
 export default function AlbumsPage() {
   const { isSignedIn } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const viewMode = searchParams.get("view") === "personal" ? "personal" : "public";
+  
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+  // public 区域子菜单状态
+  const [publicSubView, setPublicSubView] = useState<"top20" | "all">("top20");
+  
   const [showPolaroidModal, setShowPolaroidModal] = useState(false);
   const [polaroidRatio, setPolaroidRatio] = useState<"1:1" | "4:3">("1:1");
   const [addTitleTrigger, setAddTitleTrigger] = useState(0);
@@ -205,12 +224,16 @@ export default function AlbumsPage() {
   };
 
   const isPlaylistUrl = (u: string) =>
-    /playlist[\?\/]|playlist\.id=/i.test(u) || /music\.163\.com[^/]*\/playlist/i.test(u);
+    /playlist[\?\/]|playlist\.id=/i.test(u) || 
+    /music\.163\.com[^/]*\/playlist/i.test(u) ||
+    /y\.qq\.com.*playlist/i.test(u) ||
+    /open\.spotify\.com.*playlist/i.test(u) ||
+    /music\.apple\.com.*playlist/i.test(u);
 
   const handleAddLink = async () => {
-    const url = extractNeteaseUrl(linkInput) || linkInput.trim();
+    const url = extractPlaylistUrl(linkInput) || linkInput.trim();
     if (!url) {
-      setLinkError("请粘贴网易云音乐链接");
+      setLinkError("请粘贴有效的音乐平台链接");
       return;
     }
     setLinkLoading(true);
@@ -395,12 +418,18 @@ export default function AlbumsPage() {
   };
 
   const handleClearExceptFirst = async () => {
-    if (!confirm("确定要清空所有专辑？此操作不可恢复。")) return;
+    const isSpecificCategory = activeCategoryId && activeCategoryId !== "all";
+    const currentCategoryName = categories.find(c => c.id === activeCategoryId)?.name || "当前";
+    const message = isSpecificCategory
+      ? `确定要清空“${currentCategoryName}”分类下的所有专辑？此操作不可恢复。`
+      : "确定要清空所有专辑？此操作不可恢复。";
+
+    if (!confirm(message)) return;
     try {
       const res = await fetch("/api/albums/clear-except-first", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ categoryId: activeCategoryId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "清除失败");
@@ -441,7 +470,8 @@ export default function AlbumsPage() {
       </header>
 
       <section>
-        <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
+        {viewMode === "personal" && (
+          <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
           <div className="relative flex items-center gap-2" ref={exportMenuRef}>
             <div className="relative">
               <button
@@ -494,11 +524,15 @@ export default function AlbumsPage() {
             {exportError && <span className="text-sm text-red-500">{exportError}</span>}
           </div>
         </div>
-        {categoriesFallback && (
+        )}
+        
+        {viewMode === "personal" && categoriesFallback && (
           <p className="mb-2 text-xs text-amber-600">
             分类功能需同步生产数据库后可用，当前仅显示全部专辑。请在本地执行：<code className="rounded bg-amber-100 px-1">DATABASE_URL=&quot;你的生产连接串&quot; npx prisma db push</code>，详见 <a href="https://github.com/amosfall/music-cover-demo/blob/main/DEPLOYMENT.md" target="_blank" rel="noopener noreferrer" className="underline">DEPLOYMENT.md</a>
           </p>
         )}
+
+        {viewMode === "personal" && (
         <div className="mb-4 space-y-2">
           <div className="flex items-center gap-2 overflow-x-auto scroll-touch pb-1">
             {categories.map((cat) => (
@@ -597,14 +631,52 @@ export default function AlbumsPage() {
               ))}
           </div>
         </div>
+        )}
+
+        {viewMode === "public" && (
+          <div className="mb-4 flex flex-col items-center gap-3">
+            <div className="flex justify-center gap-2">
+              <button
+                onClick={() => setPublicSubView("top20")}
+                className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                  publicSubView === "top20"
+                    ? "bg-[var(--ink)] text-white shadow-md"
+                    : "bg-white text-[var(--ink-muted)] hover:bg-[var(--paper-dark)]"
+                }`}
+              >
+                Top 20
+              </button>
+              <button
+                onClick={() => setPublicSubView("all")}
+                className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                  publicSubView === "all"
+                    ? "bg-[var(--ink)] text-white shadow-md"
+                    : "bg-white text-[var(--ink-muted)] hover:bg-[var(--paper-dark)]"
+                }`}
+              >
+                全部
+              </button>
+            </div>
+            {publicSubView === "top20" && (
+              <p className="text-xs text-[var(--ink-muted)]">
+                根據所有用戶添加最多的20張專輯綜合排名顯示
+              </p>
+            )}
+          </div>
+        )}
+
         <div id="album-wall-export">
           <AlbumGrid
-            key={`${refreshKey}-${activeCategoryId}`}
-            categoryId={activeCategoryId ?? undefined}
+            key={`${refreshKey}-${activeCategoryId}-${viewMode}-${publicSubView}`}
+            categoryId={viewMode === "personal" ? activeCategoryId ?? undefined : undefined}
+            scope={viewMode}
+            readOnly={viewMode === "public"}
+            layout={viewMode === "public" && publicSubView === "all" ? "list" : "grid"}
           />
         </div>
       </section>
 
+      {viewMode === "personal" && (
       <button
         type="button"
         onClick={() => {
@@ -620,6 +692,7 @@ export default function AlbumsPage() {
       >
         这里
       </button>
+      )}
 
       {showSearchOverlay && (
         <div
@@ -651,7 +724,7 @@ export default function AlbumsPage() {
                 onChange={(e) => { setLinkInput(e.target.value); setLinkError(null); }}
                 onPaste={(e) => {
                   const raw = e.clipboardData.getData("text");
-                  const extracted = extractNeteaseUrl(raw);
+                  const extracted = extractPlaylistUrl(raw);
                   if (extracted) setLinkInput(extracted);
                   else setLinkInput(raw);
                   setLinkError(null);

@@ -1,151 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
-import { resolveNeteaseShareLink } from "@/lib/resolve-netease-share-link";
+import { fetchNeteasePlaylist, PlaylistTrackItem } from "@/lib/platforms/netease";
+import { fetchSpotifyPlaylist } from "@/lib/platforms/spotify";
+import { fetchQQMusicPlaylist } from "@/lib/platforms/qqmusic";
+import { fetchAppleMusicPlaylist } from "@/lib/platforms/applemusic";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 // Vercel Pro 可延长至 60s；Hobby 仍为 10s，歌单过大可能超时
 export const maxDuration = 60;
 
-export type PlaylistTrackItem = {
-  name: string;
-  artistName: string;
-  picUrl: string;
-  albumName?: string;
-  /** 网易云歌曲 ID，用于按这首歌拉取歌词 */
-  songId: string;
-};
+export { type PlaylistTrackItem };
 
 /**
  * POST /api/playlist
- * Body: { playlistId: string } 或 { url: string }（从中解析 id）
- * 使用 NETEASE_API_URL 请求歌单详情，返回每首歌的 name、歌手、封面 picUrl。
+ * Body: { url: string }
+ * 自动识别平台并获取歌单详情
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    let playlistId: string | null =
-      body?.playlistId?.trim() || body?.id?.trim() || null;
+    const url = (body?.url || body?.playlistId || "").trim();
 
-    if (!playlistId && typeof body?.url === "string") {
-      const url = body.url.trim();
-      const host = (() => {
-        try {
-          return new URL(url).hostname.toLowerCase();
-        } catch {
-          return "";
-        }
-      })();
-      if (host === "163cn.tv" || host.endsWith(".163cn.tv")) {
-        playlistId = await resolveNeteaseShareLink(url);
-      }
-      if (!playlistId) {
-        const match = url.match(/playlist\?id=(\d+)/i) || url.match(/playlist\/(\d+)/i);
-        playlistId = match ? match[1] : null;
-      }
-    }
-
-    if (!playlistId) {
+    if (!url) {
       return NextResponse.json(
-        { error: "请提供 playlistId 或歌单链接（含 id）" },
+        { error: "请提供歌单链接" },
         { status: 400 }
       );
     }
 
-    const apiBase = process.env.NETEASE_API_URL;
-    if (!apiBase) {
-      return NextResponse.json(
-        {
-          error:
-            "请配置 NETEASE_API_URL（与解析单曲相同，如本地 npx NeteaseCloudMusicApi 或公网 API）",
-        },
-        { status: 503 }
-      );
+    let items: PlaylistTrackItem[] = [];
+
+    // Dispatcher
+    if (url.includes("spotify.com")) {
+      items = await fetchSpotifyPlaylist(url);
+    } else if (url.includes("qq.com")) {
+      items = await fetchQQMusicPlaylist(url);
+    } else if (url.includes("music.apple.com")) {
+      items = await fetchAppleMusicPlaylist(url);
+    } else {
+      // Default to Netease
+      items = await fetchNeteasePlaylist(url);
     }
-
-    const base = apiBase.replace(/\/$/, "");
-    // NeteaseCloudMusicApi: /playlist/detail?id=xxx 返回 playlist.tracks
-    // Railway 冷启动可能较慢，设置 60s 超时
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
-    const res = await fetch(`${base}/playlist/detail?id=${playlistId}`, {
-      headers: { "User-Agent": "Mozilla/5.0" },
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("[playlist] API not ok:", res.status, text.slice(0, 200));
-      return NextResponse.json(
-        { error: `歌单接口请求失败: ${res.status}` },
-        { status: 502 }
-      );
-    }
-
-    const data = await res.json();
-    const playlist = data?.playlist;
-    const tracks = playlist?.tracks;
-    if (!Array.isArray(tracks) || tracks.length === 0) {
-      return NextResponse.json(
-        { error: "未获取到歌单曲目，请检查歌单 id 或链接是否有效" },
-        { status: 404 }
-      );
-    }
-
-    // 歌单接口返回的 track 可能没有每首歌自己的 al.picUrl（或统一成歌单封面），
-    // 所以用 song/detail 按歌曲 id 拉取详情，拿到每首歌正确的专辑封面。
-    const ids = tracks
-      .map((t: Record<string, unknown>) => t.id as number)
-      .filter((id: unknown) => typeof id === "number" && id > 0);
-    if (ids.length === 0) {
-      return NextResponse.json(
-        { error: "歌单曲目无有效 id" },
-        { status: 404 }
-      );
-    }
-
-    const CHUNK = 50;
-    const allSongs: Record<string, unknown>[] = [];
-    for (let i = 0; i < ids.length; i += CHUNK) {
-      const chunk = ids.slice(i, i + CHUNK);
-      const detailCtrl = new AbortController();
-      const detailTimeout = setTimeout(() => detailCtrl.abort(), 30000);
-      const detailRes = await fetch(
-        `${base}/song/detail?ids=${chunk.join(",")}`,
-        { headers: { "User-Agent": "Mozilla/5.0" }, signal: detailCtrl.signal }
-      );
-      clearTimeout(detailTimeout);
-      if (!detailRes.ok) continue;
-      const detailData = await detailRes.json();
-      const songs = detailData?.songs;
-      if (Array.isArray(songs)) allSongs.push(...songs);
-    }
-
-    const idToSong = new Map<number, Record<string, unknown>>();
-    for (const s of allSongs) {
-      const id = s.id as number;
-      if (id != null) idToSong.set(id, s);
-    }
-
-    const items: PlaylistTrackItem[] = tracks.map((t: Record<string, unknown>) => {
-      const tid = t.id as number;
-      const song = idToSong.get(tid) || t;
-      const name = (song.name as string) || (t.name as string) || "未知";
-      const ar = (song.ar as { name?: string }[]) || (song.artists as { name?: string }[]) || (t.ar as { name?: string }[]) || (t.artists as { name?: string }[]) || [];
-      const artistName = Array.isArray(ar)
-        ? ar.map((a) => (a as { name?: string })?.name).filter(Boolean).join(", ")
-        : "";
-      const al = (song.al as { picUrl?: string; name?: string }) || (song.album as { picUrl?: string; name?: string }) || (t.al as { picUrl?: string; name?: string }) || (t.album as { picUrl?: string; name?: string }) || {};
-      const picUrl = (al.picUrl as string) || "";
-      const albumName = (al.name as string) || name;
-      return {
-        name,
-        artistName: artistName || "未知",
-        picUrl: picUrl.replace(/^http:/, "https:"),
-        albumName,
-        songId: String(tid),
-      };
-    });
 
     return NextResponse.json({ items, total: items.length });
   } catch (err) {
@@ -154,16 +49,13 @@ export async function POST(request: NextRequest) {
     const isNetwork =
       msg === "fetch failed" ||
       /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|ECONNRESET|network/i.test(msg);
-    const hint =
-      "打开 /api/check-netease 可诊断连接状态。若用 Railway，冷启动可能需 30 秒，请稍后重试。";
-    const apiHost = process.env.NETEASE_API_URL || "";
-    const isRailway = /railway|railway\.app/i.test(apiHost);
-    const railHint = isRailway
-      ? "若使用 Railway，首次请求可能需 30–60 秒冷启动，请稍后重试。或改用本地 API：npm run netease-api + NETEASE_API_URL=http://localhost:3002"
-      : hint;
-    const finalMsg = isNetwork
-      ? `无法连接网易云 API：${msg}。${railHint}`
-      : msg;
+    
+    // Customize error message based on platform hint
+    let finalMsg = msg;
+    if (isNetwork) {
+      finalMsg = `网络请求失败: ${msg}。请检查服务器网络连接。`;
+    }
+
     return NextResponse.json({ error: finalMsg }, { status: 500 });
   }
 }
