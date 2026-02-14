@@ -34,7 +34,9 @@ function extractPlaylistUrl(text: string): string {
 
 type Category = { id: string; name: string; sortOrder: number };
 
-export default function AlbumsPage() {
+import { Suspense } from "react";
+
+function AlbumsContent() {
   const { isSignedIn } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -901,5 +903,13 @@ export default function AlbumsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AlbumsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <AlbumsContent />
+    </Suspense>
   );
 }
