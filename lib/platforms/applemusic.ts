@@ -38,8 +38,13 @@ export async function fetchAppleMusicPlaylist(url: string): Promise<PlaylistTrac
     const data = JSON.parse(jsonStr);
 
     // Navigate the complex Apple Music JSON structure
-    // 根據實際資料結構，data 是物件而不是陣列
-    const sections = data?.data?.sections;
+    // 根據實際資料結構，data 可能被包裝在一個陣列中，或者直接是對象
+    let root = data;
+    if (Array.isArray(data) && data.length > 0) {
+      root = data[0];
+    }
+    
+    const sections = root?.data?.sections;
     if (!Array.isArray(sections)) {
       throw new Error("Apple Music 数据结构不匹配: 找不到 sections");
     }
