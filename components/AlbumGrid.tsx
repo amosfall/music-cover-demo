@@ -282,8 +282,11 @@ export default function AlbumGrid({ categoryId, scope = "personal", readOnly = f
     // The user wants to click one album cover and see all songs inside
     const seen = new Set<string>();
     return list.filter((item) => {
-      if (seen.has(item.albumName)) return false;
-      seen.add(item.albumName);
+      // 統一使用 albumName 作為唯一鍵
+      // 為了更嚴謹，可以用 `${item.albumName}||${item.artistName || ""}` 作為唯一標識
+      const key = `${item.albumName}||${item.artistName || ""}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
       return true;
     });
   }, [items, scope]);
@@ -407,10 +410,10 @@ export default function AlbumGrid({ categoryId, scope = "personal", readOnly = f
                 {/* 列出该专辑下所有已导入的歌曲 */}
                 {scope === "personal" && (
                   <div className="mt-4 border-t border-[var(--paper-dark)] pt-3">
-                    <p className="mb-2 text-xs font-medium text-[var(--ink-muted)]">包含曲目 ({items.filter(i => i.albumName === selectedAlbum.albumName).length})</p>
+                    <p className="mb-2 text-xs font-medium text-[var(--ink-muted)]">包含曲目 ({items.filter(i => i.albumName === selectedAlbum.albumName && (i.artistName || "") === (selectedAlbum.artistName || "")).length})</p>
                     <ul className="space-y-1 max-h-40 overflow-y-auto">
                       {items
-                        .filter(i => i.albumName === selectedAlbum.albumName)
+                        .filter(i => i.albumName === selectedAlbum.albumName && (i.artistName || "") === (selectedAlbum.artistName || ""))
                         .map(song => (
                           <li key={song.id} className="text-sm text-[var(--ink)] flex items-center gap-2">
                              <span className="text-[var(--ink-muted)] text-xs">♪</span>

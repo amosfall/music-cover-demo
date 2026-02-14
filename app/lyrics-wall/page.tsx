@@ -30,8 +30,10 @@ const MAX_LINES_PER_SONG = 6;
 
 
 /** 专辑唯一键，同一专辑合并为一条 */
-function getAlbumKey(item: { albumName: string; imageUrl: string }) {
-  return `${item.albumName}||${item.imageUrl}`;
+function getAlbumKey(item: { albumName: string; artistName?: string | null }) {
+  // 原来的 key 是 albumName + imageUrl，会导致不同渠道（封面不同）的同名专辑分开
+  // 现在改成 albumName + artistName
+  return `${item.albumName}||${item.artistName || ""}`;
 }
 
 const STRIP_ORDER_STORAGE_KEY = "lyrics-wall-strip-order";
@@ -434,14 +436,25 @@ function LyricsWallContent() {
 
   // 按专辑去重的列表（用于底部 dock），id 为 albumKey，同一专辑只一条
   const rawAlbumList: StripItem[] = useMemo(() => {
+    // 聚合逻辑：按 albumName 聚合，不管来源渠道
     const seen = new Set<string>();
     const list: StripItem[] = [];
     for (const item of displayItems) {
-      const key = getAlbumKey(item);
+      // 統一使用 albumName 作為唯一鍵（忽略 imageUrl 差異，因為不同渠道的封面 URL 可能不同）
+      // 使用 albumName 作為 id 可能會有衝突（如果不同藝人有同名專輯），但這裡為了合併顯示，這是合理的
+      // 為了更嚴謹，可以用 `${item.albumName}||${item.artistName || ""}` 作為唯一標識
+      const key = `${item.albumName}||${item.artistName || ""}`;
+      
+      // 注意：这里的 id 需要能反向映射回一组 displayItems
+      // 之前用的是 getAlbumKey(item) = `${item.albumName}||${item.imageUrl}`
+      // 现在我们要合并不同渠道的同名专辑，所以 imageUrl 可能不同
+      
       if (!seen.has(key)) {
         seen.add(key);
+        // id 仍然使用这个 key，但在外部使用时需要注意它代表的是一个聚合
+        // 下面 displayItems 过滤时也要相应调整
         list.push({
-          id: key,
+          id: key, 
           imageUrl: item.imageUrl,
           albumName: item.albumName,
           artistName: item.artistName,
