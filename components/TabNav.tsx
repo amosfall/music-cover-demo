@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import LyricsModal from "@/components/LyricsModal";
 
-export default function TabNav() {
+function TabNavContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const view = searchParams.get("view");
@@ -59,5 +59,13 @@ export default function TabNav() {
         <LyricsModal onClose={() => setShowLyricsModal(false)} />
       )}
     </>
+  );
+}
+
+export default function TabNav() {
+  return (
+    <Suspense fallback={<div className="h-10 w-full animate-pulse bg-gray-100/50 rounded-lg"></div>}>
+      <TabNavContent />
+    </Suspense>
   );
 }
