@@ -371,7 +371,12 @@ export default function AlbumGrid({ categoryId, scope = "personal", readOnly = f
                   </p>
                   {(item.artistName || item.releaseYear) && (
                     <p className="truncate text-xs text-[var(--ink-muted)]">
-                      {[item.artistName, item.releaseYear].filter(Boolean).join(" · ")}
+                      {[
+                        item.artistName,
+                        item.releaseYear?.trim()?.substring(0, 4)
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </p>
                   )}
                 </div>
