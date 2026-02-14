@@ -31,12 +31,13 @@ export async function fetchQQMusicPlaylist(url: string): Promise<PlaylistTrackIt
 
   // 3. Extract __INITIAL_DATA__
   // Pattern: window.__INITIAL_DATA__ = {...}
-  const match = html.match(/window\.__INITIAL_DATA__\s*=\s*({.+?})\s*(?:;|<\/script>)/s);
+  // Note: 's' flag (dotAll) requires ES2018+. If build fails, use [\s\S] instead of .
+  const match = html.match(/window\.__INITIAL_DATA__\s*=\s*({[\s\S]+?})\s*(?:;|<\/script>)/);
   
   if (!match) {
     // If desktop page fails, maybe it's still a mobile page structure?
     // Mobile page often has window.firstPageData
-    const mobileMatch = html.match(/window\.firstPageData\s*=\s*({.+?})\s*(?:;|<\/script>)/s);
+    const mobileMatch = html.match(/window\.firstPageData\s*=\s*({[\s\S]+?})\s*(?:;|<\/script>)/);
     if (mobileMatch) {
       return parseMobileData(mobileMatch[1]);
     }
