@@ -698,7 +698,7 @@ function ScatteredLyrics({ fragments, centerBlockFragments = [], centerBlockExpa
                             />
                           ) : null}
                         </div>
-                        {currentSongName ? (
+                        {currentSongName && currentSongName !== albumName ? (
                           <div>
                             <EditableCreditLine
                               text={currentSongName}
