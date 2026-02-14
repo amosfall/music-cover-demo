@@ -182,7 +182,20 @@ export default function AlbumGrid({ categoryId, scope = "personal", readOnly = f
   }, []);
 
   const handleSelectAlbum = useCallback((item: AlbumCover) => {
+    // If multiple songs from same album, we want to show all of them in the modal
+    // But currently the modal only shows one item (selectedAlbum)
+    // We need to find all items that belong to this album
+    
+    // For now, let's just select the clicked item.
+    // If the user wants to see all songs in the album, we might need a different UI
+    // like a list of songs inside the modal.
+    
+    // Actually, based on user request: "点开一张专辑，里面可以看到导入的多首歌"
+    // We need to fetch/filter all songs for this album.
+    
+    // Let's pass the album info to the state, and render a list in the modal.
     setSelectedAlbum(item);
+    
     if (scope === "public") {
       fetchReviews(item.albumName, item.artistName);
       setNewRating(0);
@@ -265,9 +278,14 @@ export default function AlbumGrid({ categoryId, scope = "personal", readOnly = f
     // 公共区域不需要去重，因为后端已经聚合了
     if (scope === "public") return list;
     
-    // Personal scope: show all items (songs) without deduplication
-    // This allows multiple songs from the same album to be displayed
-    return list;
+    // Personal scope: deduplicate by albumName so we only show one cover per album
+    // The user wants to click one album cover and see all songs inside
+    const seen = new Set<string>();
+    return list.filter((item) => {
+      if (seen.has(item.albumName)) return false;
+      seen.add(item.albumName);
+      return true;
+    });
   }, [items, scope]);
 
   const handleDelete = useCallback(async (id: string, e: React.MouseEvent) => {
@@ -345,8 +363,8 @@ export default function AlbumGrid({ categoryId, scope = "personal", readOnly = f
                   </div>
                 )}
                 <div className="mt-2 text-center">
-                  <p className="truncate text-sm font-medium text-[var(--ink)]" title={item.songName || item.albumName}>
-                    {item.songName || item.albumName}
+                  <p className="truncate text-sm font-medium text-[var(--ink)]" title={item.albumName}>
+                    {item.albumName}
                   </p>
                   {(item.artistName || item.releaseYear) && (
                     <p className="truncate text-xs text-[var(--ink-muted)]">
@@ -385,10 +403,23 @@ export default function AlbumGrid({ categoryId, scope = "personal", readOnly = f
                       .join(" / ")}
                   </p>
                 )}
-                {selectedAlbum.songName?.trim() && (
-                  <p className="mt-2 text-sm text-[var(--ink)]">
-                    {selectedAlbum.songName}
-                  </p>
+                
+                {/* 列出该专辑下所有已导入的歌曲 */}
+                {scope === "personal" && (
+                  <div className="mt-4 border-t border-[var(--paper-dark)] pt-3">
+                    <p className="mb-2 text-xs font-medium text-[var(--ink-muted)]">包含曲目 ({items.filter(i => i.albumName === selectedAlbum.albumName).length})</p>
+                    <ul className="space-y-1 max-h-40 overflow-y-auto">
+                      {items
+                        .filter(i => i.albumName === selectedAlbum.albumName)
+                        .map(song => (
+                          <li key={song.id} className="text-sm text-[var(--ink)] flex items-center gap-2">
+                             <span className="text-[var(--ink-muted)] text-xs">♪</span>
+                             <span>{song.songName || "未知曲目"}</span>
+                          </li>
+                        ))
+                      }
+                    </ul>
+                  </div>
                 )}
                 
                 {scope === "public" && (

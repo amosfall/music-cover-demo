@@ -77,3 +77,45 @@ export async function fetchNeteaseLyrics(
     return null;
   }
 }
+
+/**
+ * 根據關鍵詞搜索歌曲，返回最匹配的一首。
+ * 用於當導入來源（如 Apple Music）沒有提供網易雲 ID 時，嘗試自動匹配。
+ */
+export async function searchSong(
+  apiBase: string,
+  keyword: string
+): Promise<{ id: string; name: string; artist: string } | null> {
+  const base = apiBase.replace(/\/$/, "");
+  const extraCookie = process.env.NETEASE_COOKIE || "os=pc; appver=2.9.7";
+  try {
+    // type=1: 單曲
+    const res = await fetch(`${base}/cloudsearch?keywords=${encodeURIComponent(keyword)}&type=1&limit=5`, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Cookie": extraCookie,
+        "Accept": "application/json, text/plain, */*",
+      },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const songs = data?.result?.songs;
+    
+    if (Array.isArray(songs) && songs.length > 0) {
+      // 簡單取第一首，通常是最相關的
+      const song = songs[0];
+      const artist = Array.isArray(song.ar) 
+        ? song.ar.map((a: any) => a.name).join("/") 
+        : (song.ar?.name || "未知");
+        
+      return {
+        id: String(song.id),
+        name: song.name,
+        artist: artist
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}

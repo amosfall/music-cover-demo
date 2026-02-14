@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withDbRetry } from "@/lib/db";
-import { fetchNeteaseLyrics } from "@/lib/netease-lyrics";
+import { fetchNeteaseLyrics, searchSong } from "@/lib/netease-lyrics";
 import { getUserIdOr401 } from "@/lib/auth";
 
 export const maxDuration = 60;
@@ -40,8 +40,23 @@ export async function POST(request: NextRequest) {
       if (!imageUrl || !albumName) continue;
 
       let lyrics: string | null = null;
-      const songId = a?.songId?.trim() || null;
+      let songId = a?.songId?.trim() || null;
       const songName = a?.songName?.trim() || null;
+
+      // 如果沒有 songId (如 Apple Music 來源) 但有歌名，嘗試在網易雲搜索匹配
+      if (!songId && songName && apiBase) {
+        const artist = a?.artistName?.trim() || "";
+        const keyword = `${songName} ${artist}`.trim();
+        if (keyword) {
+          const searchResult = await searchSong(apiBase, keyword);
+          if (searchResult) {
+            songId = searchResult.id;
+            // 選擇性更新：如果原始數據沒有藝人名，可以用搜索結果補充
+            // if (!a.artistName) a.artistName = searchResult.artist;
+          }
+        }
+      }
+
       if (songId && apiBase) {
         lyrics = await fetchNeteaseLyrics(apiBase, songId);
         if (!lyrics) lyrics = null;
