@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withDbRetry } from "@/lib/db";
+import { normalizeText } from "@/lib/text-normalization";
 
 export const dynamic = "force-dynamic";
 
@@ -45,17 +46,12 @@ export async function GET() {
     }>();
 
     for (const item of rawGroups) {
-      // 規範化 key：移除空格，忽略大小寫
-      // 這裡簡單處理：如果有 artistName，則作為 key 的一部分
-      // 如果 artistName 缺失，嘗試歸類到已有同名專輯
+      // 規範化 key：移除空格，忽略大小寫，並進行簡繁轉換
+      // 這能解決 "神的游戏" (簡) 和 "神的遊戲" (繁) 被分開的問題
+      const normalizedAlbumName = normalizeText(item.albumName);
+      const normalizedArtistName = normalizeText(item.artistName);
       
-      const normalizedAlbumName = item.albumName.trim();
-      const normalizedArtistName = item.artistName?.trim() || "";
-      
-      // 簡單策略：完全匹配 "Album||Artist"
-      // 但為了解決 "神的游戏" (Artist: 张悬) 和 "神的游戏" (Artist: null) 的問題
-      // 我們可以嘗試：如果 artistName 為空，看看是否已有同名專輯
-      
+      // key 的構成：規範化後的專輯名 + 規範化後的藝人名
       let key = `${normalizedAlbumName}||${normalizedArtistName}`;
       
       // 嘗試查找是否已有同名專輯但有藝人名的記錄
@@ -74,8 +70,8 @@ export async function GET() {
              // 將無藝人名的數據加到當前有藝人名的記錄上
              const currentCount = (mergedMap.get(key)?.count || 0) + item._count._all + noArtistData.count;
              mergedMap.set(key, {
-                 albumName: normalizedAlbumName,
-                 artistName: normalizedArtistName,
+                 albumName: item.albumName, // 優先使用原始數據中的名字（通常是比較完整的）
+                 artistName: item.artistName || null,
                  count: currentCount
              });
              mergedMap.delete(noArtistKey);
@@ -88,8 +84,8 @@ export async function GET() {
         existing.count += item._count._all;
       } else {
         mergedMap.set(key, {
-          albumName: normalizedAlbumName,
-          artistName: normalizedArtistName || null, // 保持 null 如果真的沒有
+          albumName: item.albumName, // 保持原始顯示
+          artistName: item.artistName || null, // 保持原始顯示
           count: item._count._all
         });
       }
